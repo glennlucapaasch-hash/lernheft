@@ -29,7 +29,8 @@ export function schedule(srs, rating, now = Date.now()) {
   } else if (rating === 2) {
     tage = s.reps === 0 ? 1 : s.reps === 1 ? 3 : Math.max(s.interval + 1, Math.round(s.interval * s.ease));
   } else {
-    tage = s.reps === 0 ? 3 : Math.max(s.interval + 2, Math.round(s.interval * s.ease * 1.3));
+    const gut = s.reps === 0 ? 1 : s.reps === 1 ? 3 : Math.max(s.interval + 1, Math.round(s.interval * s.ease));
+    tage = s.reps === 0 ? 3 : Math.max(gut + 2, Math.round(s.interval * s.ease * 1.3));
     s.ease = Math.min(3, s.ease + 0.15);
   }
   s.reps += 1;

@@ -86,7 +86,9 @@ function lernen(ctx) {
     fach.lang && kannSprechen() &&
     h('button', { class: 'knopf-icon karte-ton', 'aria-label': 'Aussprache anhören', onclick: (e) => { e.stopPropagation(); sprechen(text, fach.lang); } }, icon('ton'));
 
-  const kopf = h('div', { class: 'lernen-kopf' },
+  const neuKarte = sitzung.letzte !== karte.id + sitzung.modus + sitzung.erledigt;
+  sitzung.letzte = karte.id + sitzung.modus + sitzung.erledigt;
+  const kopf = h('div', { class: `lernen-kopf ${neuKarte ? 'karte-kommt' : ''}` },
     h('button', { class: 'knopf knopf-leise', onclick: () => beenden(ctx) }, icon('x', 18), 'Beenden'),
     h('div', { class: 'lernen-stand' },
       h('span', null, `${Math.min(sitzung.erledigt + 1, sitzung.gesamt)} von ${sitzung.gesamt}`),
@@ -96,11 +98,20 @@ function lernen(ctx) {
 
   // ---------- Karteikarte umdrehen ----------
   if (modus === 'umdrehen') {
-    const umdrehen = () => { if (!offen) { sitzung.phase = 'antwort'; ctx.refresh(); } };
+    let gedreht = offen;
+    const umdrehen = () => {
+      if (gedreht) return;
+      gedreht = true;
+      sitzung.phase = 'antwort';
+      kartenEl.classList.add('ist-offen');
+      kartenEl.removeAttribute('role'); kartenEl.removeAttribute('tabindex'); kartenEl.removeAttribute('aria-label');
+      unten.replaceChildren(bewertungEl());
+      unten.querySelector('button')?.focus({ preventScroll: true });
+    };
     const taste = (e) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (!offen && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); umdrehen(); }
-      else if (offen && ['1', '2', '3', '4'].includes(e.key)) bewerten(ctx, karte, Number(e.key) - 1);
+      if (!gedreht && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); umdrehen(); }
+      else if (gedreht && ['1', '2', '3', '4'].includes(e.key)) bewerten(ctx, karte, Number(e.key) - 1);
     };
     document.addEventListener('keydown', taste);
     ctx.onLeave(() => document.removeEventListener('keydown', taste));
@@ -111,23 +122,27 @@ function lernen(ctx) {
       { r: 2, name: 'Gut', art: '' },
       { r: 3, name: 'Einfach', art: 'gruen' },
     ];
+    const bewertungEl = () => h('div', { class: 'bewertung' },
+      h('p', { class: 'hinweis' }, 'Wie gut wusstest du es? (Tasten 1–4)'),
+      h('div', { class: 'bewertung-knoepfe' }, stufen.map((s) =>
+        h('button', { class: `knopf knopf-stufe ${s.art}`, onclick: () => bewerten(ctx, karte, s.r) },
+          h('span', null, s.name), h('small', null, intervalText(karte.srs, s.r))))));
+    const kartenEl = h('div', { class: `flip ${offen ? 'ist-offen' : ''}`, role: offen ? null : 'button', tabindex: offen ? null : '0', 'aria-label': offen ? null : 'Karte umdrehen', onclick: umdrehen },
+      h('div', { class: 'flip-innen' },
+        h('div', { class: `karteikarte gross flip-vorn farbe-${fach.farbe}` },
+          h('div', { class: 'karte-seite' }, h('p', { class: 'karte-text' }, frage), fremdVorn && tonKnopf(karte.front)),
+          h('p', { class: 'karte-tipp' }, 'Tippen zum Umdrehen')),
+        h('div', { class: `karteikarte gross flip-hinten farbe-${fach.farbe}` },
+          h('div', { class: 'karte-seite' },
+            h('p', { class: 'karte-frage-klein' }, frage),
+            h('p', { class: 'karte-text' }, antwort),
+            !fremdVorn && tonKnopf(karte.front),
+            karte.note && h('p', { class: 'karte-notiz' }, karte.note)))));
+    const unten = h('div', { class: 'lernen-unten' },
+      offen ? bewertungEl() : h('button', { class: 'knopf knopf-haupt knopf-breit', onclick: umdrehen }, 'Umdrehen'));
     return h('div', { class: 'lernen' }, kopf,
       h('p', { class: 'lernen-stapel' }, deck?.name || ''),
-      h('div', { class: `karteikarte gross farbe-${fach.farbe} ${offen ? 'ist-offen' : ''}`, role: offen ? null : 'button', tabindex: offen ? null : '0', 'aria-label': offen ? null : 'Karte umdrehen', onclick: umdrehen },
-        h('div', { class: 'karte-seite' },
-          h('p', { class: 'karte-text' }, frage),
-          fremdVorn && tonKnopf(karte.front)),
-        offen && h('div', { class: 'karte-seite karte-rueck' },
-          h('p', { class: 'karte-text' }, antwort),
-          !fremdVorn && tonKnopf(karte.front),
-          hinweisZeile)),
-      offen
-        ? h('div', { class: 'bewertung' },
-            h('p', { class: 'hinweis' }, 'Wie gut wusstest du es?'),
-            h('div', { class: 'bewertung-knoepfe' }, stufen.map((s) =>
-              h('button', { class: `knopf knopf-stufe ${s.art}`, onclick: () => bewerten(ctx, karte, s.r) },
-                h('span', null, s.name), h('small', null, intervalText(karte.srs, s.r))))))
-        : h('button', { class: 'knopf knopf-haupt knopf-breit', onclick: umdrehen }, 'Umdrehen'));
+      kartenEl, unten);
   }
 
   // ---------- Antwort schreiben ----------
@@ -211,9 +226,16 @@ function ende(ctx) {
   const anteil = gesamt ? richtig / gesamt : 0;
   const spruch = anteil >= 0.9 ? 'Stark!' : anteil >= 0.6 ? 'Geschafft!' : 'Dranbleiben!';
   return h('div', { class: 'lernen lernen-ende' },
+    anteil >= 0.6 && konfetti(),
     h('p', { class: 'handschrift ende-spruch' }, spruch),
     h('p', { class: 'ende-zahl' }, `${richtig} von ${mehrzahl(gesamt, 'Karte', 'Karten')} auf Anhieb gewusst.`),
     richtig < gesamt && h('p', { class: 'hinweis' }, 'Die anderen kommen morgen früher wieder dran.'),
     serie > 0 && h('p', { class: 'ende-serie' }, h('mark', null, serie === 1 ? 'Erster Tag deiner Lernserie' : `${serie} Tage in Folge gelernt`)),
     h('button', { class: 'knopf knopf-haupt knopf-breit', onclick: () => beenden(ctx) }, 'Fertig'));
+}
+
+function konfetti() {
+  const farben = ['var(--marker)', 'var(--koenigsblau)', 'var(--rotstift)', 'var(--gruen)'];
+  return h('div', { class: 'konfetti', 'aria-hidden': 'true' }, Array.from({ length: 36 }, (_, i) =>
+    h('i', { style: { left: `${(i * 37) % 100}%`, background: farben[i % 4], animationDelay: `${(i % 9) * 0.07}s`, animationDuration: `${1.4 + (i % 5) * 0.25}s`, transform: `rotate(${i * 23}deg)` } })));
 }

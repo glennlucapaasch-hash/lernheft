@@ -71,6 +71,7 @@ function zeichnen() {
       h('button', { class: 'knopf knopf-haupt', onclick: () => ctx.go('start') }, 'Zurück zum Start'));
   }
   ctx.optionen = null;
+  inhalt.classList.add('auftritt');
   main.replaceChildren(inhalt);
   navZeichnen(aktiv.id);
   document.title = `${aktiv.name} – Lernheft`;
@@ -82,7 +83,7 @@ function navZeichnen(aktivId) {
     h('ul', null, BEREICHE.map((b) =>
       h('li', { class: b.neben ? 'nav-neben' : '' },
         h('a', { href: `#${b.id}`, 'aria-current': b.id === aktivId ? 'page' : null, onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
-          icon(b.icon), h('span', null, b.name))))),
+          b.id === 'scannen' ? h('span', { class: 'nav-scan' }, icon(b.icon, 26)) : icon(b.icon), h('span', null, b.name))))),
   );
 }
 

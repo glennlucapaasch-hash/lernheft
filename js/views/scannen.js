@@ -1,6 +1,7 @@
 import { h, icon, auswahl, toast, mehrzahl } from '../dom.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
+import { lernenStarten } from './lernen.js';
 import { kiVerfuegbar, bildVorbereiten, vokabelnErkennen, matheErkennen, stoffErkennen } from '../ai.js';
 
 const MAX_FOTOS = 4;
@@ -108,12 +109,14 @@ function pruefSchritt(ctx) {
   const karten = ui.ergebnis.karten;
   const istMathe = ui.art === 'mathe';
   const zaehler = h('span');
-  const speicherKnopf = h('button', { class: 'knopf knopf-haupt knopf-gross', type: 'submit' });
+  const speicherKnopf = h('button', { class: 'knopf knopf-gross', type: 'submit', value: 'speichern' });
+  const abfrageKnopf = h('button', { class: 'knopf knopf-haupt knopf-gross', type: 'submit', value: 'abfragen' }, 'Speichern und gleich abfragen');
   const zaehlen = () => {
     const n = karten.filter((k) => k.front.trim() && k.back.trim()).length;
     zaehler.textContent = `${mehrzahl(n, 'Karte', 'Karten')} erkannt.`;
-    speicherKnopf.textContent = `${mehrzahl(n, 'Karte', 'Karten')} speichern`;
+    speicherKnopf.textContent = 'Nur speichern';
     speicherKnopf.disabled = !n;
+    abfrageKnopf.disabled = !n;
   };
 
   const liste = h('ol', { class: 'pruef-liste' });
@@ -145,8 +148,16 @@ function pruefSchritt(ctx) {
       const deck = ui.ziel === 'neu' ? store.addDeck(ui.neuName || ui.ergebnis.titel, ui.neuFach) : store.getDeck(ui.ziel);
       const neu = store.addCards(deck.id, karten);
       toast(`${mehrzahl(neu.length, 'Karte', 'Karten')} in „${deck.name}“ gespeichert.`);
+      const art = ui.art;
       zuruecksetzen();
-      ctx.go('karten', { deckId: deck.id });
+      if (e.submitter?.value === 'abfragen' && neu.length) {
+        lernenStarten(ctx, {
+          cardIds: neu.map((c) => c.id),
+          modus: art === 'vokabeln' && neu.length >= 4 ? 'ankreuzen' : 'umdrehen',
+          titel: deck.name,
+          danach: () => ctx.go('karten', { deckId: deck.id }),
+        });
+      } else ctx.go('karten', { deckId: deck.id });
     } },
       h('div', { class: 'blatt' },
         h('p', null, h('strong', null, zaehler), ' Lies einmal drüber – Fehler verbesserst du direkt in den Feldern.'),
@@ -156,6 +167,7 @@ function pruefSchritt(ctx) {
         h('div', { class: 'feld' }, h('label', { for: 'ziel' }, 'Speichern in'), zielWahl),
         neuFelder,
         h('div', { class: 'reihe' },
+          abfrageKnopf,
           speicherKnopf,
           h('button', { type: 'button', class: 'knopf', onclick: () => { zuruecksetzen(); ctx.refresh(); } }, 'Verwerfen')))));
 }

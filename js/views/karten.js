@@ -173,7 +173,8 @@ function detail(ctx, deck) {
       h('h1', null, deck.name),
       h('p', null, mehrzahl(alle.length, 'Karte', 'Karten'), faellig > 0 && [', ', h('mark', null, `${faellig} fällig`)]),
       h('div', { class: 'reihe' },
-        h('button', { class: 'knopf knopf-haupt', disabled: !alle.length, onclick: () => lernDialog(ctx, deck) }, 'Lernen'),
+        h('button', { class: 'knopf knopf-haupt', disabled: !alle.length, onclick: () => lernenStarten(ctx, { cardIds: (faellig ? store.dueCards(deck.id) : alle).map((c) => c.id), modus: deck.fach === 'mathe' ? 'umdrehen' : 'schreiben', titel: deck.name }) }, faellig ? `${faellig} fällige abfragen` : 'Alle abfragen'),
+        h('button', { class: 'knopf', disabled: !alle.length, onclick: () => lernDialog(ctx, deck) }, 'Abfrage einstellen'),
         h('button', { class: 'knopf-icon', 'aria-label': 'Stapel bearbeiten', onclick: () => stapelDialog(ctx, deck) }, icon('stift')),
         h('button', { class: 'knopf-icon', 'aria-label': 'Stapel löschen', onclick: async () => {
           const ja = await nachfragen('Stapel löschen?', `„${deck.name}“ und ${mehrzahl(alle.length, 'Karte', 'Karten')} werden gelöscht. Das lässt sich nicht rückgängig machen.`, 'Löschen', { gefahr: true });
