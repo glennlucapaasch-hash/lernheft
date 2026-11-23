@@ -25,7 +25,7 @@ try {
     for (const n of namen) {
       try {
         const k = db.kontoAnlegen(n, { admin: befehl === 'admin' });
-        zeile(k.name + (k.admin ? ' (Admin)' : ''), k.passwort);
+        zeile(k.name, k.passwort + (k.admin ? '   (Admin)' : ''));
       } catch (e) {
         zeile(n, `– ${e.message}`);
       }

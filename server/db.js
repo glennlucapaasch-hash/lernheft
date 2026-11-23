@@ -47,7 +47,7 @@ export function passwortErzeugen() {
 }
 
 export const nameOk = (name) => /^[a-z0-9._-]{2,30}$/.test(name);
-export const nameNormal = (name) => String(name || '').trim().toLowerCase()
+export const nameNormal = (name) => String(name || '').replace(/\([^)]*\)/g, '').trim().toLowerCase()
   .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '.');
 
 export function pruefen(name, passwort) {

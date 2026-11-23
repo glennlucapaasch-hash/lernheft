@@ -24,7 +24,7 @@ test.after(() => { proc.kill(); rmSync(daten, { recursive: true, force: true });
 
 test('Server: Konten, Daten, Rechte, Schlüssel bleibt geheim', async () => {
   const aus = execFileSync(process.execPath, ['server/benutzer.js', 'admin', 'Glenn'], { env: { ...process.env, DATEN: daten } }).toString();
-  const pwGlenn = /glenn \(Admin\)\s+(\S+)/.exec(aus)[1];
+  const pwGlenn = /glenn\s+(\S+)/.exec(aus)[1];
   assert.match(pwGlenn, /^[A-Za-z]+-[A-Za-z]+-[A-Za-z]+-\d\d$/);
 
   // Server neu laden lassen: Konten werden beim Start gelesen
