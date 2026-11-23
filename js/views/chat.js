@@ -4,12 +4,9 @@ import { FAECHER } from '../store.js';
 import { kiVerfuegbar, chatAntwort, bildVorbereiten } from '../ai.js';
 
 // Verlauf bleibt für die Sitzung erhalten (Fotos werden nicht dauerhaft gespeichert).
-const ui = { verlauf: [], entwurf: '', foto: null, laden: false, ki: undefined };
-try {
-  const alt = JSON.parse(sessionStorage.getItem('lernheft.chat') || '[]');
-  if (Array.isArray(alt)) ui.verlauf = alt.filter((m) => m && m.text).map((m) => ({ role: m.role, text: m.text }));
-} catch { /* egal */ }
-const merken = () => { try { sessionStorage.setItem('lernheft.chat', JSON.stringify(ui.verlauf.slice(-40).map(({ role, text }) => ({ role, text })))); } catch { /* egal */ } };
+// Der Verlauf wird im Lernheft gespeichert (mit Konto: auf dem Server, ohne Fotos).
+const ui = { verlauf: null, entwurf: '', foto: null, laden: false, ki: undefined };
+const merken = () => store.chatSpeichern(ui.verlauf);
 
 const VORSCHLAEGE = [
   'Erklär mir den Unterschied zwischen Simple Past und Present Perfect',
@@ -86,6 +83,7 @@ function blase(ctx, m, i) {
 }
 
 export function chat(ctx) {
+  if (!ui.verlauf) ui.verlauf = (store.getState().chat || []).map((m) => ({ role: m.role, text: m.text }));
   kiVerfuegbar().then((weg) => { if (weg !== ui.ki) { ui.ki = weg; if (location.hash === '#chat') ctx.refresh(); } });
   if (ctx.optionen?.frage) { ui.entwurf = ctx.optionen.frage; }
 

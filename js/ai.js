@@ -8,6 +8,23 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 export class KiFehler extends Error {}
 
 let einstellungen = () => ({ apiKey: '', model: 'claude-sonnet-5-5' });
+// Mit Konten: alle KI-Anfragen gehen über den eigenen Server, der Schlüssel liegt nur dort.
+let serverKi = false;
+export function serverModus() {
+  serverKi = true;
+}
+export const istServerModus = () => serverKi;
+
+function kiPost(body) {
+  if (serverKi) {
+    return fetch('/api/ki', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-lernheft': '1' }, body: JSON.stringify(body) });
+  }
+  return fetch(API_URL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-api-key': einstellungen().apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({ model: einstellungen().model, ...body }),
+  });
+}
 export function konfigurieren(fn) {
   einstellungen = fn;
 }
@@ -23,6 +40,7 @@ function eingebaut() {
 
 // 'schluessel' | 'claude' | null
 export async function kiVerfuegbar() {
+  if (serverKi) return 'server';
   if (einstellungen().apiKey) return 'schluessel';
   return (await eingebaut()) ? 'claude' : null;
 }
@@ -75,7 +93,6 @@ function jsonAusText(text) {
 }
 
 async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
-  const { apiKey, model } = einstellungen();
   const content = [];
   for (const b of bilder) {
     content.push({ type: 'image', source: { type: 'base64', media_type: bildTyp(b), data: await blobZuBase64(b) } });
@@ -84,20 +101,10 @@ async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
 
   let antwort;
   try {
-    antwort = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model,
+    antwort = await kiPost({
         max_tokens: maxTokens,
         tools: [{ name: 'antwort', description: 'Gibt das Ergebnis strukturiert zurück.', input_schema: schema }],
         messages: [{ role: 'user', content }],
-      }),
     });
   } catch {
     throw new KiFehler('Keine Verbindung zur KI. Prüfe dein Internet und versuch es noch mal.');
@@ -110,6 +117,10 @@ async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
     /* leere oder kaputte Antwort: unten als Fehler behandelt */
   }
   if (!antwort.ok) {
+    if (serverKi && daten?.error?.message && antwort.status !== 200) {
+      const m = daten.error.message;
+      if (!/^[a-z_]+:|messages\.|tool|model/i.test(m) || antwort.status === 429) throw new KiFehler(m);
+    }
     const meldung = daten?.error?.message || '';
     if (antwort.status === 401) throw new KiFehler('Der KI-Schlüssel wurde abgelehnt. Prüfe ihn in den Einstellungen.');
     if (antwort.status === 404) throw new KiFehler('Das gewählte KI-Modell gibt es nicht (mehr). Wähle in den Einstellungen ein anderes.');
@@ -153,7 +164,7 @@ async function perClaude({ anweisung, bilder, schema }) {
 async function frage({ anweisung, bilder = [], schema, maxTokens = 4096 }) {
   const weg = await kiVerfuegbar();
   if (!weg) throw new KiFehler('Hinterlege zuerst einen KI-Schlüssel in den Einstellungen.');
-  const roh = weg === 'schluessel'
+  const roh = weg === 'schluessel' || weg === 'server'
     ? await perSchluessel({ anweisung, bilder, schema, maxTokens })
     : await perClaude({ anweisung, bilder, schema });
   if (!roh || typeof roh !== 'object') throw new KiFehler('Die KI hat nichts Brauchbares geantwortet. Versuch es noch mal.');
@@ -426,8 +437,7 @@ export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
   const weg = await kiVerfuegbar();
   if (!weg) throw new KiFehler('Hinterlege zuerst einen KI-Schlüssel in den Einstellungen.');
 
-  if (weg === 'schluessel') {
-    const { apiKey, model } = einstellungen();
+  if (weg === 'schluessel' || weg === 'server') {
     const messages = [];
     for (const m of letzte) {
       const content = [];
@@ -437,16 +447,13 @@ export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
     }
     let antwort;
     try {
-      antwort = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model, max_tokens: 2000, system, messages }),
-      });
+      antwort = await kiPost({ max_tokens: 2000, system, messages });
     } catch {
       throw new KiFehler('Keine Verbindung zur KI. Prüfe dein Internet und versuch es noch mal.');
     }
     const daten = await antwort.json().catch(() => null);
     if (!antwort.ok) {
+      if (serverKi && daten?.error?.message) throw new KiFehler(daten.error.message);
       if (antwort.status === 401) throw new KiFehler('Der KI-Schlüssel wurde abgelehnt. Prüfe ihn in den Einstellungen.');
       if (antwort.status === 429) throw new KiFehler('Zu viele Anfragen auf einmal. Warte kurz.');
       if (antwort.status >= 500) throw new KiFehler('Die KI ist gerade überlastet. Versuch es gleich noch mal.');

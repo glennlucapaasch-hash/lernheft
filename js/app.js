@@ -1,6 +1,8 @@
-import { h, icon } from './dom.js';
+import { h, icon, toast, nachfragen } from './dom.js';
 import * as store from './store.js';
-import { konfigurieren } from './ai.js';
+import { konfigurieren, serverModus } from './ai.js';
+import { anmeldeSeite } from './views/anmelden.js';
+import { verwaltung } from './views/verwaltung.js';
 import { start } from './views/start.js';
 import { karten } from './views/karten.js';
 import { scannen } from './views/scannen.js';
@@ -17,12 +19,64 @@ const BEREICHE = [
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
+  { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, neben: true, nurAdmin: true },
   { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, neben: true },
   { id: 'einstellungen', name: 'Einstellungen', icon: 'einstellungen', view: einstellungen, neben: true },
 ];
 
 store.init();
 konfigurieren(() => store.getState().settings);
+
+// ---------- Konto: Läuft die App auf dem eigenen Server mit Anmeldung? ----------
+const api = (pfad, opts = {}) => fetch(pfad, { credentials: 'same-origin', ...opts, headers: { 'content-type': 'application/json', 'x-lernheft': '1', ...(opts.headers || {}) } });
+async function kontoPruefen() {
+  try {
+    const r = await api('/api/ich');
+    if (!(r.headers.get('content-type') || '').includes('json')) return null; // reine Webseite ohne Server-Teil
+    if (r.status === 401) return 'abgemeldet';
+    return r.ok ? await r.json() : null;
+  } catch {
+    return null;
+  }
+}
+const konto = await kontoPruefen();
+if (konto === 'abgemeldet') {
+  document.getElementById('nav').hidden = true;
+  document.getElementById('inhalt').replaceChildren(anmeldeSeite(() => location.reload()));
+  document.documentElement.dataset.theme = matchMedia?.('(prefers-color-scheme: dark)').matches ? 'tafel' : 'heft';
+  throw new Error('Anmeldung nötig'); // Rest der App erst nach dem Anmelden laden
+}
+if (konto) {
+  serverModus();
+  const lokal = store.getState();
+  let daten = {};
+  try {
+    const r = await api('/api/daten');
+    daten = r.ok ? await r.json() : {};
+  } catch { /* leer starten */ }
+  const lokaleKarten = lokal.cards.length;
+  store.serverModus(daten, async (json) => {
+    const r = await api('/api/daten', { method: 'PUT', body: json, keepalive: json.length < 60000 });
+    if (r.status === 401) location.reload();
+    if (!r.ok) throw new Error('Speichern fehlgeschlagen');
+  });
+  // Erste Anmeldung auf einem Gerät, auf dem schon ohne Konto gelernt wurde: Karten übernehmen?
+  if (!store.getState().decks.length && lokaleKarten && konto.admin) {
+    queueMicrotask(async () => {
+      if (await nachfragen('Karten übernehmen?', `Auf diesem Gerät liegen noch ${lokaleKarten} Karten von vorher. Sollen sie in dein Konto?`, 'Übernehmen')) {
+        store.importData(JSON.stringify({ app: 'lernheft', ...lokal, settings: { ...lokal.settings, apiKey: '' } }));
+        toast('Karten übernommen.');
+        zeichnen();
+      }
+    });
+  }
+  let gemeldet = false;
+  store.beiSpeicherStatus((s) => {
+    if (s === 'fehler' && !gemeldet) { gemeldet = true; toast('Speichern klappt gerade nicht – ich versuche es weiter.', 'fehler'); }
+    if (s === 'ok') gemeldet = false;
+  });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store.jetztSpeichern(); });
+}
 
 const main = document.getElementById('inhalt');
 const blase = document.createElement('a');
@@ -37,7 +91,7 @@ let ueberlagerung = null; // z. B. eine laufende Abfrage, die über dem Bereich 
 
 function bereich() {
   const id = location.hash.replace('#', '');
-  return BEREICHE.find((b) => b.id === id) || BEREICHE[0];
+  return BEREICHE.find((b) => b.id === id && (!b.nurAdmin || konto?.admin)) || BEREICHE[0];
 }
 
 const ctx = {
@@ -61,6 +115,13 @@ const ctx = {
   // Wird vor dem nächsten Zeichnen aufgerufen (Timer stoppen, Tasten abmelden).
   onLeave: (fn) => aufraeumen.push(fn),
   optionen: null,
+  konto: konto || null,
+  async abmelden() {
+    store.jetztSpeichern();
+    await new Promise((r) => setTimeout(r, 300));
+    try { await api('/api/abmelden', { method: 'POST' }); } catch { /* egal */ }
+    location.reload();
+  },
 };
 
 function zeichnen() {
@@ -90,7 +151,7 @@ function zeichnen() {
 function navZeichnen(aktivId) {
   nav.replaceChildren(
     h('a', { class: 'nav-marke', href: '#start', 'aria-label': 'Lernheft, zum Start' }, 'Lernheft'),
-    h('ul', null, BEREICHE.map((b) =>
+    h('ul', null, BEREICHE.filter((b) => !b.nurAdmin || konto?.admin).map((b) =>
       h('li', { class: b.neben ? 'nav-neben' : '' },
         h('a', { href: `#${b.id}`, 'aria-current': b.id === aktivId ? 'page' : null, onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
           b.id === 'scannen' ? h('span', { class: 'nav-scan' }, icon(b.icon, 26)) : icon(b.icon), h('span', null, b.name))))),

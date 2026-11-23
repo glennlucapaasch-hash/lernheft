@@ -26,6 +26,7 @@ function leer() {
     log: {},
     exams: [],
     rechner: { verlauf: [], grad: true },
+    chat: [],
   };
 }
 
@@ -58,6 +59,7 @@ function uebernehmen(daten) {
     log: d.log && typeof d.log === 'object' ? d.log : {},
     exams: Array.isArray(d.exams) ? d.exams : [],
     rechner: { ...basis.rechner, ...(d.rechner || {}) },
+    chat: Array.isArray(d.chat) ? d.chat.filter((m) => m && typeof m.text === 'string').slice(-40) : [],
   };
   for (const dk of state.decks) if (!FAECHER[dk.fach]) dk.fach = 'sonstiges';
   const ids = new Set(state.decks.map((dk) => dk.id));
@@ -74,7 +76,46 @@ export function init(storage) {
   return state;
 }
 
+// ---------- Mit Konto: Daten liegen auf dem Server ----------
+let fern = null;
+let fernTimer = null;
+let fernStatus = 'ok'; // 'ok' | 'speichert' | 'fehler'
+const fernBeobachter = new Set();
+export const speicherStatus = () => fernStatus;
+export const beiSpeicherStatus = (fn) => fernBeobachter.add(fn);
+function statusSetzen(s) {
+  fernStatus = s;
+  fernBeobachter.forEach((fn) => { try { fn(s); } catch { /* egal */ } });
+}
+
+export function serverModus(daten, speichern) {
+  uebernehmen(daten);
+  fern = speichern;
+}
+
+async function fernSpeichern() {
+  fernTimer = null;
+  statusSetzen('speichert');
+  try {
+    await fern(JSON.stringify(state));
+    statusSetzen('ok');
+  } catch {
+    statusSetzen('fehler');
+    fernTimer = setTimeout(fernSpeichern, 5000); // später nochmal versuchen
+  }
+}
+
+export function jetztSpeichern() {
+  if (fern && fernTimer) { clearTimeout(fernTimer); fernSpeichern(); }
+}
+
 export function save() {
+  if (fern) {
+    if (fernTimer) clearTimeout(fernTimer);
+    fernTimer = setTimeout(fernSpeichern, 700);
+    statusSetzen('speichert');
+    return;
+  }
   try {
     speicher?.setItem(KEY, JSON.stringify(state));
   } catch {
@@ -230,6 +271,11 @@ export function exportData() {
   const kopie = JSON.parse(JSON.stringify(state));
   kopie.settings.apiKey = ''; // der Schlüssel verlässt das Gerät nie
   return JSON.stringify({ app: 'lernheft', ...kopie }, null, 2);
+}
+
+export function chatSpeichern(verlauf) {
+  state.chat = verlauf.filter((m) => m.text).slice(-40).map(({ role, text }) => ({ role, text }));
+  save();
 }
 
 export function importData(json) {

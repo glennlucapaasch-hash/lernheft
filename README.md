@@ -28,3 +28,20 @@ npm test         # prüft Rechner, Antwortprüfung, Wiederholungsplan, Klausuren
 ## Daten
 
 Alles liegt nur auf dem Gerät (localStorage). Unter *Einstellungen → Sicherung erstellen* lässt sich alles sichern und auf einem anderen Gerät einspielen.
+
+## Mit Konten auf dem eigenen Server
+
+Läuft die App über `server/server.js`, gibt es Anmeldung mit Benutzername und Passwort. Jede Person hat eigene Karten, Chats und Klausuren (auf dem Server gespeichert), der Admin verwaltet in der App unter **Verwaltung** die Personen, den KI-Schlüssel, das Modell und ein Tageslimit. Der Schlüssel liegt nur auf dem Server.
+
+```bash
+# Docker (Daten liegen in /opt/lernheft-daten)
+docker run -d --name lernheft --restart unless-stopped -p 172.18.0.1:3020:3000 \
+  -v /opt/lernheft:/app:ro -v /opt/lernheft-daten:/daten -e DATEN=/daten -w /app \
+  node:22-alpine node server/server.js
+
+docker exec lernheft node server/benutzer.js admin glenn        # Admin anlegen, Passwort wird angezeigt
+docker exec lernheft node server/benutzer.js anlegen anna ben    # weitere Konten
+docker exec lernheft node server/benutzer.js liste
+```
+
+Sicherung: den Ordner `/opt/lernheft-daten` kopieren.

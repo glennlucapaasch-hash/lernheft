@@ -1,7 +1,7 @@
 import { h, feld, auswahl, nachfragen, toast, modal } from '../dom.js';
 import * as store from '../store.js';
 import { MODELLE } from '../store.js';
-import { kiVerfuegbar, verbindungTesten } from '../ai.js';
+import { kiVerfuegbar, verbindungTesten, istServerModus } from '../ai.js';
 
 function sicherungLaden(text) {
   // Erst als Datei anbieten; wo Downloads gesperrt sind, bleibt das Kopieren.
@@ -55,7 +55,37 @@ function einspielenDialog(ctx) {
   ]);
 }
 
+function passwortDialog() {
+  const alt = h('input', { type: 'password', autocomplete: 'current-password' });
+  const neu = h('input', { type: 'password', autocomplete: 'new-password', minlength: '8' });
+  const zu = modal('Passwort ändern', h('form', { onsubmit: async (e) => {
+    e.preventDefault();
+    if (neu.value.length < 8) { toast('Das neue Passwort braucht mindestens 8 Zeichen.', 'fehler'); neu.focus(); return; }
+    const r = await fetch('/api/passwort', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-lernheft': '1' }, body: JSON.stringify({ alt: alt.value, neu: neu.value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast(d?.error?.message || 'Das hat nicht geklappt.', 'fehler'); return; }
+    zu();
+    toast('Passwort geändert. Bitte melde dich neu an.');
+    setTimeout(() => location.reload(), 1500);
+  } },
+    feld('Bisheriges Passwort', alt),
+    feld('Neues Passwort', neu, 'Mindestens 8 Zeichen. Gut merkbar und trotzdem sicher: drei Wörter mit Bindestrich und eine Zahl.'),
+    h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Passwort ändern'))));
+}
+
+function kontoBereich(ctx) {
+  const k = ctx.konto;
+  return h('section', { class: 'blatt' },
+    h('h2', null, 'Dein Konto'),
+    h('p', null, 'Angemeldet als ', h('strong', null, k.name), k.admin ? ' (Admin)' : '', '. Deine Karten, Chats und Klausuren werden auf dem Server gespeichert – du siehst sie auf jedem Gerät, auf dem du dich anmeldest.'),
+    h('div', { class: 'reihe' },
+      h('button', { class: 'knopf', onclick: passwortDialog }, 'Passwort ändern'),
+      k.admin && h('a', { class: 'knopf', href: '#verwaltung' }, 'Zur Verwaltung'),
+      h('button', { class: 'knopf knopf-gefahr-leise', onclick: () => ctx.abmelden() }, 'Abmelden')));
+}
+
 export function einstellungen(ctx) {
+  const mitKonto = istServerModus() && ctx.konto;
   const e = store.getState().settings;
   const kiStatus = h('p', { class: 'hinweis', role: 'status' });
   const zeigeStatus = () => kiVerfuegbar().then((weg) => {
@@ -98,7 +128,7 @@ export function einstellungen(ctx) {
         { wert: 'tafel', titel: 'Tafel', text: 'Dunkel, wie Kreide auf der Tafel' },
       ], e.theme, (v) => { store.setSettings({ theme: v }); ctx.themeAnwenden(); })),
 
-    h('section', { class: 'blatt' },
+    mitKonto ? kontoBereich(ctx) : h('section', { class: 'blatt' },
       h('h2', null, 'KI-Schlüssel'),
       h('p', null, 'Zum Erkennen von Fotos, für Erklärungen und für neue Klausuraufgaben fragt die App Claude von Anthropic. Dafür brauchst du einen eigenen API-Schlüssel; jede Anfrage kostet ein paar Cent und wird über dein Konto bei Anthropic abgerechnet.'),
       feld('API-Schlüssel', schluessel, 'Den Schlüssel bekommst du in der Claude Console unter „API Keys“. Er wird nur in diesem Browser gespeichert und nur an Anthropic geschickt.'),
@@ -109,12 +139,12 @@ export function einstellungen(ctx) {
 
     h('section', { class: 'blatt' },
       h('h2', null, 'Deine Daten'),
-      h('p', null, 'Alles liegt nur auf diesem Gerät. Wenn du den Browser-Speicher löschst oder das Gerät wechselst, sind die Karten weg – außer du hast eine Sicherung.'),
+      h('p', null, mitKonto ? 'Eine Sicherung als Datei ist trotzdem nützlich, z. B. bevor du viel aufräumst.' : 'Alles liegt nur auf diesem Gerät. Wenn du den Browser-Speicher löschst oder das Gerät wechselst, sind die Karten weg – außer du hast eine Sicherung.'),
       h('div', { class: 'reihe' },
         h('button', { class: 'knopf', onclick: sicherungDialog }, 'Sicherung erstellen'),
         h('button', { class: 'knopf', onclick: () => einspielenDialog(ctx) }, 'Sicherung einspielen'),
         h('button', { class: 'knopf knopf-gefahr-leise', onclick: async () => {
-          if (await nachfragen('Alles löschen?', 'Alle Stapel, Karten, Klausuren und Einstellungen werden gelöscht. Das lässt sich nicht rückgängig machen.', 'Alles löschen', { gefahr: true })) {
+          if (await nachfragen('Alles löschen?', 'Alle deine Stapel, Karten, Klausuren und Chats werden gelöscht. Das lässt sich nicht rückgängig machen.', 'Alles löschen', { gefahr: true })) {
             store.resetAll();
             ctx.themeAnwenden();
             toast('Alles gelöscht.');
