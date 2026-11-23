@@ -8,6 +8,7 @@ import { mathe } from './views/mathe.js';
 import { klausur } from './views/klausur.js';
 import { statistik } from './views/statistik.js';
 import { einstellungen } from './views/einstellungen.js';
+import { chat } from './views/chat.js';
 
 const BEREICHE = [
   { id: 'start', name: 'Start', icon: 'heft', view: start },
@@ -15,6 +16,7 @@ const BEREICHE = [
   { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen },
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
+  { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
   { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, neben: true },
   { id: 'einstellungen', name: 'Einstellungen', icon: 'einstellungen', view: einstellungen, neben: true },
 ];
@@ -23,6 +25,12 @@ store.init();
 konfigurieren(() => store.getState().settings);
 
 const main = document.getElementById('inhalt');
+const blase = document.createElement('a');
+blase.href = '#chat';
+blase.className = 'chat-blase';
+blase.setAttribute('aria-label', 'Lernhelfer fragen');
+blase.append(icon('chat', 26));
+document.body.append(blase);
 const nav = document.getElementById('nav');
 let aufraeumen = [];
 let ueberlagerung = null; // z. B. eine laufende Abfrage, die über dem Bereich liegt
@@ -74,6 +82,8 @@ function zeichnen() {
   inhalt.classList.add('auftritt');
   main.replaceChildren(inhalt);
   navZeichnen(aktiv.id);
+  // Chat-Knopf überall, außer im Chat selbst und während einer Abfrage
+  blase.hidden = aktiv.id === 'chat' || Boolean(ueberlagerung);
   document.title = `${aktiv.name} – Lernheft`;
 }
 

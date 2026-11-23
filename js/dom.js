@@ -44,6 +44,8 @@ const ICONS = {
   muell: '<path d="M5 7h14M10 7V4.500h4V7M7 7l1 13h8l1-13"/>',
   zurueck: '<path d="M11 5l-7 7 7 7M4 12h16"/>',
   bild: '<rect x="3.500" y="5" width="17" height="14" rx="1.500"/><path d="M4 16l4.500-4.500 4 4 2.500-2.500 5 5"/><circle cx="15.500" cy="9.500" r="1.500"/>',
+  chat: '<path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4.5 3.500v-3.500h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="2.400"/>',
+  senden: '<path d="M4 12l16-7.500-6 16-2.500-6.500z"/><path d="M11.500 14L20 4.500"/>',
   uhr: '<circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/>',
 };
 

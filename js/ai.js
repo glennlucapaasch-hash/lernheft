@@ -393,3 +393,72 @@ export async function verbindungTesten() {
   });
   return r.ok !== false;
 }
+
+// ---------- Lernhelfer-Chat ----------
+// verlauf: [{ role: 'user'|'assistant', text, bild?: Blob }]; onText(teilText) für live mitlaufenden Text
+export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
+  const system =
+    'Du bist „Lernhelfer“, ein freundlicher, geduldiger Nachhilfelehrer in einer Lern-App für Schülerinnen und Schüler in Deutschland. ' +
+    'Antworte auf Deutsch, kurz und klar, in einfachen Sätzen. Erkläre Schritt für Schritt und mit Beispielen. ' +
+    'Bei Hausaufgaben und Übungsaufgaben: nicht einfach die Lösung hinschreiben, sondern zuerst einen Denkanstoß oder den ersten Schritt geben und fragen, ob die Person selbst weiterkommt – außer sie bittet ausdrücklich um die Lösung zur Kontrolle. ' +
+    'Bei Vokabeln: Bedeutung, Beispielsatz, Merkhilfe. ' +
+    'Schreibe ohne Markdown: keine Sternchen, keine Rauten, keine Tabellen. Aufzählungen mit „–“ am Zeilenanfang, Formeln als einfacher Text (x², √, ·, a/b). ' +
+    'Bleib beim Thema Schule und Lernen; bei anderen Themen hilf kurz und lenke freundlich zurück.' +
+    (kontext ? `\n\nDas lernt die Person gerade (ihre Stapel in der App): ${kontext}` : '');
+  const letzte = verlauf.slice(-20);
+  const weg = await kiVerfuegbar();
+  if (!weg) throw new KiFehler('Hinterlege zuerst einen KI-Schlüssel in den Einstellungen.');
+
+  if (weg === 'schluessel') {
+    const { apiKey, model } = einstellungen();
+    const messages = [];
+    for (const m of letzte) {
+      const content = [];
+      if (m.bild) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobZuBase64(m.bild) } });
+      content.push({ type: 'text', text: m.text || '(Foto)' });
+      messages.push({ role: m.role, content });
+    }
+    let antwort;
+    try {
+      antwort = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model, max_tokens: 2000, system, messages }),
+      });
+    } catch {
+      throw new KiFehler('Keine Verbindung zur KI. Prüfe dein Internet und versuch es noch mal.');
+    }
+    const daten = await antwort.json().catch(() => null);
+    if (!antwort.ok) {
+      if (antwort.status === 401) throw new KiFehler('Der KI-Schlüssel wurde abgelehnt. Prüfe ihn in den Einstellungen.');
+      if (antwort.status === 429) throw new KiFehler('Zu viele Anfragen auf einmal. Warte kurz.');
+      if (antwort.status >= 500) throw new KiFehler('Die KI ist gerade überlastet. Versuch es gleich noch mal.');
+      throw new KiFehler(`Die KI hat die Anfrage abgelehnt${daten?.error?.message ? `: ${daten.error.message}` : '.'}`);
+    }
+    const text = (daten?.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+    if (!text) throw new KiFehler('Die KI hat nichts geantwortet. Versuch es noch mal.');
+    onText?.(text);
+    return text;
+  }
+
+  const sample = await eingebaut();
+  const bilder = letzte.filter((m) => m.bild).map((m) => m.bild).slice(-2);
+  const opts = { modelTier: 'default', cache: false, onText: ({ text }) => onText?.(text) };
+  if (bilder.length) {
+    const grenzen = await sample.limits().catch(() => null);
+    if (grenzen?.images) opts.images = bilder;
+  }
+  const eingabe = [
+    { role: 'user', content: `${system}\n\nVerstanden? Antworte nur mit „Ja“.` },
+    { role: 'assistant', content: 'Ja' },
+    ...letzte.map((m) => ({ role: m.role, content: (m.bild ? '[Foto angehängt] ' : '') + (m.text || '') })),
+  ];
+  try {
+    const r = await sample(eingabe, opts);
+    return String(r.text || '').trim();
+  } catch (e) {
+    if (e?.code === 'rate_limited') throw new KiFehler('Zu viele Anfragen auf einmal. Warte kurz.');
+    if (e?.code === 'not_granted') throw new KiFehler('Die KI-Nutzung wurde für diese Seite nicht erlaubt.');
+    throw new KiFehler('Die KI hat nichts geantwortet. Versuch es noch mal.');
+  }
+}
