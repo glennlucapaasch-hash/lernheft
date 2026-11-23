@@ -60,13 +60,21 @@ export async function bildVorbereiten(datei, maxKante = 1568) {
   );
 }
 
+function jsonAusText(text) {
+  const t = String(text || '').replace(/```(?:json)?/g, '');
+  const start = t.indexOf('{');
+  const ende = t.lastIndexOf('}');
+  if (start < 0 || ende <= start) return null;
+  try { return JSON.parse(t.slice(start, ende + 1)); } catch { return null; }
+}
+
 async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
   const { apiKey, model } = einstellungen();
   const content = [];
   for (const b of bilder) {
     content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobZuBase64(b) } });
   }
-  content.push({ type: 'text', text: anweisung });
+  content.push({ type: 'text', text: `${anweisung}\n\nGib dein Ergebnis ausschließlich über das Werkzeug „antwort“ zurück.` });
 
   let antwort;
   try {
@@ -82,7 +90,6 @@ async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
         model,
         max_tokens: maxTokens,
         tools: [{ name: 'antwort', description: 'Gibt das Ergebnis strukturiert zurück.', input_schema: schema }],
-        tool_choice: { type: 'tool', name: 'antwort' },
         messages: [{ role: 'user', content }],
       }),
     });
@@ -107,6 +114,10 @@ async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
   }
   const block = daten?.content?.find((b) => b.type === 'tool_use');
   if (!block?.input) {
+    // Manche Modelle antworten als Text: dann das JSON darin suchen.
+    const text = (daten?.content || []).filter((x) => x.type === 'text').map((x) => x.text).join('\n');
+    const json = jsonAusText(text);
+    if (json) return json;
     if (daten?.stop_reason === 'max_tokens') throw new KiFehler('Das war zu viel auf einmal. Teil die Seite auf zwei Fotos auf.');
     throw new KiFehler('Die KI hat nichts Brauchbares geantwortet. Versuch es noch mal.');
   }
