@@ -1,0 +1,11 @@
+{
+  "name": "lernheft",
+  "version": "1.0.0",
+  "description": "Lern-App für die Schule: Buchseiten scannen, Karteikarten, Mathe-Werkzeuge und Probeklausuren.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test"
+  }
+}

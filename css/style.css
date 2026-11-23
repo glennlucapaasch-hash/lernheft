@@ -1,0 +1,501 @@
+/* Lernheft – Gestaltung
+   Hell sieht die App aus wie ein Schulheft (Karopapier, königsblaue Tinte, Rotstift, Textmarker),
+   dunkel wie eine Tafel mit Kreide. Karteikarten bleiben in beiden Fällen Papier. */
+
+:root {
+  --schrift: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --hand: "Playwrite DE Grund", "Segoe Print", "Bradley Hand", cursive;
+
+  --papier: #f8fafd;
+  --blatt: #ffffff;
+  --karo: #e2e9f4;
+  --tinte: #1b2a5c;
+  --grau: #55617f;
+  --koenigsblau: #2440b3;
+  --auf-blau: #ffffff;
+  --rotstift: #c4273c;
+  --auf-rot: #ffffff;
+  --rand: #e58a97;
+  --marker: #ffe65a;
+  --auf-marker: #1b2a5c;
+  --gruen: #17784a;
+  --linie: #cbd5e6;
+  --linie-stark: #8a99bc;
+  --wahl: #eef2fb;
+  --fokus: #b85c00;
+  --anzeige: #eef3ea;
+  --schatten: rgba(27, 42, 92, 0.22);
+
+  /* Karteikarten-Farben nach Fach */
+  --k-weiss: #ffffff;
+  --k-blau: #d9e9fb;
+  --k-rosa: #ffdfe4;
+  --k-gelb: #fff3b8;
+  --k-gruen: #dbf2df;
+
+  /* Lernstufen: ein Farbton, von hell (neu) nach dunkel (sicher) */
+  --stufe-neu: #d5ddf3;
+  --stufe-lernen: #95a9e3;
+  --stufe-gefestigt: #4f6bd0;
+  --stufe-sicher: #1c3391;
+}
+
+[data-theme="tafel"] {
+  --papier: #1b2925;
+  --blatt: #22332d;
+  --karo: #263a33;
+  --tinte: #f1efe4;
+  --grau: #b7c4ba;
+  --koenigsblau: #a9cbf5;
+  --auf-blau: #13201c;
+  --rotstift: #f7a3a3;
+  --auf-rot: #2a1414;
+  --rand: #8c5a5a;
+  --marker: #f2d660;
+  --auf-marker: #1b2925;
+  --gruen: #9fddae;
+  --linie: #3a5248;
+  --linie-stark: #6f8a7e;
+  --wahl: #2b4038;
+  --fokus: #f2d660;
+  --anzeige: #18241f;
+  --schatten: rgba(0, 0, 0, 0.45);
+
+  --k-weiss: #f4f2ea;
+  --k-blau: #c9dcf2;
+  --k-rosa: #f3cfd5;
+  --k-gelb: #f1e3a0;
+  --k-gruen: #c9e6cf;
+
+  --stufe-neu: #3b5063;
+  --stufe-lernen: #5c80a8;
+  --stufe-gefestigt: #8fb5e0;
+  --stufe-sicher: #d6e8fb;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 106.25%; -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--schrift);
+  line-height: 1.5;
+  color: var(--tinte);
+  background-color: var(--papier);
+  background-image:
+    linear-gradient(var(--karo) 1px, transparent 1px),
+    linear-gradient(90deg, var(--karo) 1px, transparent 1px);
+  background-size: 20px 20px;
+  min-height: 100vh;
+}
+
+h1, h2, h3, p, ul, ol, dl, dd, fieldset, legend { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+fieldset { border: 0; min-width: 0; }
+legend, h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.4rem; }
+h2 { font-size: 1.2rem; line-height: 1.3; }
+a { color: var(--koenigsblau); text-underline-offset: 0.18em; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.5; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+
+:focus-visible { outline: 3px solid var(--fokus); outline-offset: 2px; }
+main:focus { outline: none; }
+
+.sprung { position: absolute; left: -999px; top: 0.5rem; background: var(--blatt); padding: 0.5rem 0.8rem; z-index: 100; }
+.sprung:focus { left: 0.5rem; }
+.nur-vorlesen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Handschrift: Überschriften wie im Heft, mit dem Lineal unterstrichen */
+.handschrift { font-family: var(--hand); font-weight: 400; }
+h1.handschrift {
+  font-size: clamp(1.7rem, 6vw, 2.3rem);
+  line-height: 1.7;
+  color: var(--koenigsblau);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+  text-decoration-color: var(--tinte);
+}
+
+mark {
+  background: linear-gradient(transparent 10%, var(--marker) 10% 90%, transparent 90%);
+  color: var(--auf-marker);
+  padding: 0 0.3em;
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+/* ---------- Grundaufbau ---------- */
+.app { min-height: 100vh; }
+main { padding: 1.1rem 1rem 6.5rem; }
+.seite { max-width: 50rem; margin: 0 auto; display: grid; gap: 1.3rem; }
+.seite > * { min-width: 0; }
+
+.nav { position: fixed; inset: auto 0 0 0; background: var(--blatt); border-top: 2px solid var(--tinte); z-index: 20; }
+.nav ul { display: flex; }
+.nav li { flex: 1; }
+.nav .nav-neben, .nav a.nav-marke { display: none; }
+.nav a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0.5rem 0.1rem 0.6rem; font-size: 0.72rem; font-weight: 600; color: var(--grau); text-decoration: none; }
+.nav a[aria-current="page"] { color: var(--tinte); }
+.nav a[aria-current="page"] span { background: linear-gradient(transparent 15%, var(--marker) 15% 88%, transparent 88%); color: var(--auf-marker); padding: 0 0.35em; border-radius: 2px; }
+
+@media (min-width: 900px) {
+  .app { display: grid; grid-template-columns: 13.5rem minmax(0, 1fr); }
+  /* Die Navigation steht im Korrekturrand, abgetrennt durch die rote Randlinie. */
+  .nav { position: sticky; inset: 0 auto auto 0; height: 100vh; border-top: 0; border-right: 2px solid var(--rand); background: transparent; padding: 1.4rem 0.8rem; }
+  .nav ul { flex-direction: column; gap: 0.15rem; }
+  .nav .nav-neben { display: block; }
+  .nav .nav-neben:first-of-type { margin-top: 1.2rem; }
+  .nav a.nav-marke { display: block; font-family: var(--hand); font-size: 1.45rem; color: var(--koenigsblau); text-decoration: none; padding: 0 0.6rem 1.3rem; }
+  .nav a:not(.nav-marke) { flex-direction: row; gap: 0.7rem; font-size: 1rem; padding: 0.6rem; border-radius: 8px; }
+  .nav a:not(.nav-marke):hover { background: var(--wahl); }
+  main { padding: 2rem 2rem 3rem; }
+  #toasts { bottom: 1.5rem !important; }
+}
+
+.seiten-kopf { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; }
+.kopf-links { display: flex; gap: 0.2rem; }
+@media (min-width: 900px) { .kopf-links { display: none; } }
+.datum { color: var(--grau); }
+.einleitung { font-size: 1.1rem; max-width: 36rem; }
+.abschnitt-kopf { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.8rem; }
+.hinweis { font-size: 0.9rem; color: var(--grau); }
+.reihe { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+.reihe-ende { justify-content: flex-end; margin-top: 1.1rem; }
+
+/* ---------- Blatt: weiße Fläche auf dem Karopapier ---------- */
+.blatt { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; padding: 1.1rem 1.15rem 1.2rem; }
+.blatt > * + * { margin-top: 0.9rem; }
+.blatt > h2 + * { margin-top: 0.6rem; }
+.meldung { border-left: 6px solid var(--marker); }
+.meldung-fehler { border-left-color: var(--rotstift); }
+.leer { text-align: left; }
+
+/* ---------- Knöpfe ---------- */
+.knopf {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.45em;
+  padding: 0.6em 1em; min-height: 2.75rem;
+  border: 1.5px solid var(--tinte); border-radius: 8px;
+  background: var(--blatt); color: var(--tinte);
+  font-weight: 600; text-decoration: none; line-height: 1.2;
+}
+.knopf:hover:not(:disabled) { background: var(--wahl); }
+.knopf-haupt { background: var(--koenigsblau); border-color: var(--koenigsblau); color: var(--auf-blau); }
+.knopf-haupt:hover:not(:disabled) { background: var(--tinte); border-color: var(--tinte); color: var(--blatt); }
+.knopf-leise { border-color: transparent; background: transparent; color: var(--koenigsblau); padding-inline: 0.5em; }
+.knopf-gefahr { background: var(--rotstift); border-color: var(--rotstift); color: var(--auf-rot); }
+.knopf-gefahr:hover:not(:disabled) { background: var(--rotstift); filter: brightness(0.92); }
+.knopf-gefahr-leise { border-color: var(--rotstift); color: var(--rotstift); }
+.knopf-gross { font-size: 1.1rem; padding: 0.75em 1.5em; }
+.knopf-breit { width: 100%; }
+.knopf-icon { display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 8px; background: transparent; color: var(--tinte); }
+.knopf-icon:hover { background: var(--wahl); }
+.zurueck { justify-self: start; margin-bottom: -0.6rem; }
+.icon { flex: none; }
+
+/* ---------- Eingaben ---------- */
+input[type="text"], input[type="password"], input[type="number"], input[type="search"], select, textarea {
+  width: 100%; padding: 0.6em 0.75em; min-height: 2.75rem;
+  border: 1.5px solid var(--linie-stark); border-radius: 8px;
+  background: var(--blatt); color: var(--tinte);
+}
+textarea { resize: vertical; line-height: 1.45; display: block; }
+input::placeholder, textarea::placeholder { color: var(--grau); opacity: 0.8; }
+.feld { display: grid; gap: 0.35rem; }
+.feld + .feld, .feld + .reihe, form > .feld { margin-top: 0.9rem; }
+.feld label, .feld-titel { font-weight: 700; }
+input[type="file"] { max-width: 100%; }
+progress { appearance: none; -webkit-appearance: none; width: 100%; height: 0.6rem; border: 1px solid var(--linie-stark); border-radius: 99px; overflow: hidden; background: var(--blatt); accent-color: var(--koenigsblau); display: block; }
+progress::-webkit-progress-bar { background: var(--blatt); }
+progress::-webkit-progress-value { background: var(--koenigsblau); }
+progress::-moz-progress-bar { background: var(--koenigsblau); }
+
+/* Auswahl-Kacheln (Radio) */
+.auswahl { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 0.5rem; }
+.auswahl-punkt { position: relative; display: grid; }
+.auswahl-punkt input { position: absolute; opacity: 0; inset: 0; margin: 0; }
+.auswahl-punkt label { display: block; padding: 0.6em 0.8em 0.6em 2.3em; border: 1.5px solid var(--linie-stark); border-radius: 8px; background: var(--blatt); cursor: pointer; position: relative; }
+.auswahl-punkt label::before { content: ""; position: absolute; left: 0.75em; top: 0.8em; width: 1em; height: 1em; border: 1.5px solid var(--linie-stark); border-radius: 50%; background: var(--blatt); }
+.auswahl-punkt input:checked + label { border-color: var(--koenigsblau); box-shadow: inset 0 0 0 1px var(--koenigsblau); background: var(--wahl); }
+.auswahl-punkt input:checked + label::before { border-color: var(--koenigsblau); background: radial-gradient(var(--koenigsblau) 0 45%, var(--blatt) 50%); }
+.auswahl-punkt input:focus-visible + label { outline: 3px solid var(--fokus); outline-offset: 2px; }
+.auswahl-punkt input:disabled + label { opacity: 0.5; cursor: not-allowed; }
+.auswahl-titel { display: block; font-weight: 700; }
+.auswahl-text { display: block; font-size: 0.85rem; color: var(--grau); line-height: 1.35; }
+.blatt > h2:not(:first-child), .modal-inhalt h3:not(:first-child), form > fieldset + fieldset { margin-top: 1.3rem; }
+
+/* ---------- Karteikarte: rote Kopflinie, blaue Schreiblinien ---------- */
+.karteikarte {
+  /* Karten sind immer Papier, auch auf der Tafel */
+  --tinte: #1b2a5c; --grau: #4a5678; --koenigsblau: #2440b3; --auf-blau: #fff; --rotstift: #c4273c; --gruen: #17784a;
+  --blatt: #fff; --wahl: rgba(27, 42, 92, 0.08); --linie-stark: #8a99bc; --marker: #ffe65a; --auf-marker: #1b2a5c; --fokus: #b85c00;
+  --kf: var(--k-weiss);
+  color: var(--tinte);
+  background-color: var(--kf);
+  background-image:
+    linear-gradient(rgba(196, 39, 60, 0.75), rgba(196, 39, 60, 0.75)),
+    repeating-linear-gradient(to bottom, transparent 0 27px, rgba(36, 64, 179, 0.17) 27px 28px);
+  background-size: 100% 1.5px, 100% calc(100% - 2.2rem);
+  background-position: left 2.2rem, left bottom;
+  background-repeat: no-repeat;
+  border: 1px solid rgba(27, 42, 92, 0.35);
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 var(--schatten);
+}
+.farbe-blau { --kf: var(--k-blau); }
+.farbe-rosa { --kf: var(--k-rosa); }
+.farbe-gelb { --kf: var(--k-gelb); }
+.farbe-gruen { --kf: var(--k-gruen); }
+.farbe-weiss { --kf: var(--k-weiss); }
+
+.stapel-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: 1.2rem 1.1rem; }
+.stapel { display: grid; grid-template-rows: 2.2rem 1fr auto; text-align: left; padding: 0 0.9rem 0.7rem; min-height: 9rem; width: 100%; transition: transform 0.12s, box-shadow 0.12s; }
+.stapel:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--schatten); }
+.stapel-fach { align-self: center; font-size: 0.82rem; font-weight: 700; }
+.stapel-name { font-size: 1.15rem; font-weight: 700; line-height: 1.3; padding-top: 0.55rem; overflow-wrap: anywhere; }
+.stapel-fuss { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.88rem; padding-top: 0.6rem; }
+
+.stapel-kopf { padding: 0 1.1rem 1.1rem; display: grid; gap: 0.5rem; }
+.stapel-kopf .stapel-fach { height: 2.2rem; display: flex; align-items: center; }
+.stapel-kopf h1 { font-size: 1.6rem; line-height: 1.25; overflow-wrap: anywhere; }
+.werkzeuge { margin-top: -0.3rem; }
+
+/* ---------- Start ---------- */
+.heute-satz { font-size: 1.35rem; font-weight: 700; line-height: 1.35; }
+.heute-stand { display: grid; gap: 0.7rem 2rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); align-items: end; padding-top: 0.9rem; border-top: 1px solid var(--linie); }
+.ziel label { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
+.serie { font-size: 0.9rem; font-weight: 700; }
+.schnell { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.schnell-knopf { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.8rem 0.3rem; border: 1.5px solid var(--tinte); border-radius: 8px; background: var(--blatt); color: var(--tinte); text-decoration: none; font-weight: 600; font-size: 0.88rem; text-align: center; line-height: 1.2; }
+.schnell-knopf:hover { background: var(--wahl); }
+.willkommen { gap: 1.6rem; padding-top: 1rem; }
+.willkommen-knoepfe { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.ablauf { counter-reset: schritt; display: grid; gap: 0.9rem; max-width: 36rem; }
+.ablauf li { counter-increment: schritt; display: grid; grid-template-columns: 2.2rem 1fr; column-gap: 0.6rem; }
+.ablauf li::before { content: counter(schritt) "."; font-family: var(--hand); font-size: 1.3rem; color: var(--rotstift); grid-row: span 2; line-height: 1.3; }
+.ablauf span { color: var(--grau); }
+
+/* ---------- Kartenliste ---------- */
+.stufen { display: grid; gap: 0.5rem; }
+.stufen-balken { display: flex; gap: 2px; height: 0.75rem; }
+.stufen-balken span { border-radius: 3px; min-width: 6px; flex-basis: 0; }
+.stufen-hoch { height: 1.5rem; }
+.stufen-legende { display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; font-size: 0.9rem; }
+.stufen-punkt { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 2px; margin-right: 0.4rem; }
+.stufe-neu { background: var(--stufe-neu); }
+.stufe-lernen { background: var(--stufe-lernen); }
+.stufe-gefestigt { background: var(--stufe-gefestigt); }
+.stufe-sicher { background: var(--stufe-sicher); }
+
+.karten-liste { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; overflow: hidden; }
+.karten-liste li + li { border-top: 1px solid var(--linie); }
+.karten-liste li.hinweis { padding: 0.9rem 1rem; }
+.karten-zeile { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 6.5rem; gap: 0.2rem 1rem; width: 100%; padding: 0.7rem 1rem; text-align: left; background: transparent; border: 0; align-items: baseline; }
+.karten-zeile:hover { background: var(--wahl); }
+.kz-vorn { font-weight: 700; overflow-wrap: anywhere; }
+.kz-hinten { overflow-wrap: anywhere; }
+.kz-stufe { font-size: 0.82rem; color: var(--grau); text-align: right; }
+@media (max-width: 560px) {
+  .karten-zeile { grid-template-columns: minmax(0, 1fr) auto; }
+  .kz-hinten { grid-row: 2; }
+}
+
+/* ---------- Abfrage ---------- */
+.lernen { max-width: 34rem; margin: 0 auto; display: grid; gap: 1rem; }
+.lernen-kopf { display: flex; align-items: center; gap: 1rem; }
+.lernen-stand { flex: 1; display: grid; gap: 0.25rem; font-size: 0.88rem; text-align: right; color: var(--grau); }
+.lernen-stapel { font-size: 0.9rem; color: var(--grau); margin-bottom: -0.5rem; }
+.karteikarte.gross { padding: 3.2rem 1.3rem 1.6rem; min-height: 14rem; display: flex; flex-direction: column; justify-content: center; gap: 1.1rem; text-align: center; }
+.karteikarte.gross[role="button"] { cursor: pointer; }
+.karte-seite { display: grid; justify-items: center; gap: 0.4rem; }
+.karte-text { font-size: clamp(1.4rem, 5.5vw, 2rem); font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; white-space: pre-line; }
+.karte-rueck { border-top: 2px dashed rgba(27, 42, 92, 0.4); padding-top: 1.1rem; animation: aufdecken 0.22s ease-out; }
+.karte-notiz { font-size: 0.95rem; color: var(--grau); white-space: pre-line; }
+@keyframes aufdecken { from { opacity: 0; transform: translateY(6px); } }
+.bewertung { display: grid; gap: 0.5rem; }
+.bewertung-knoepfe { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+.knopf-stufe { flex-direction: column; gap: 0.1rem; padding: 0.55em 0.2em; }
+.knopf-stufe small { font-size: 0.72rem; font-weight: 400; color: var(--grau); }
+.knopf-stufe.rot { border-color: var(--rotstift); color: var(--rotstift); }
+.knopf-stufe.gruen { border-color: var(--gruen); color: var(--gruen); }
+.schreiben { display: grid; gap: 0.7rem; }
+.eingabe-gross { font-size: 1.25rem; padding: 0.7em 0.8em !important; }
+.sonderzeichen { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.knopf-zeichen { min-width: 2.75rem; padding: 0.3em; font-size: 1.1rem; }
+.urteil { display: flex; gap: 0.7rem; padding: 0.8rem 0.9rem; background: var(--blatt); border: 1px solid var(--linie); border-left-width: 6px; border-radius: 6px; }
+.urteil > .icon { margin-top: 0.15rem; }
+.urteil-richtig { border-left-color: var(--gruen); }
+.urteil-richtig > .icon { color: var(--gruen); }
+.urteil-fast { border-left-color: var(--marker); }
+.urteil-falsch { border-left-color: var(--rotstift); }
+.urteil-falsch > .icon { color: var(--rotstift); }
+.ankreuzen { display: grid; gap: 0.5rem; }
+.knopf-option { justify-content: flex-start; text-align: left; width: 100%; font-weight: 400; font-size: 1.05rem; }
+.knopf-option.ist-richtig { border-color: var(--gruen); box-shadow: inset 0 0 0 1.5px var(--gruen); color: var(--gruen); font-weight: 700; opacity: 1; }
+.knopf-option.ist-falsch { border-color: var(--rotstift); box-shadow: inset 0 0 0 1.5px var(--rotstift); color: var(--rotstift); text-decoration: line-through; opacity: 1; }
+.lernen-ende { text-align: center; padding-top: 2rem; justify-items: center; }
+.ende-spruch { font-size: 2.6rem; color: var(--rotstift); transform: rotate(-4deg); line-height: 1.6; }
+.ende-zahl { font-size: 1.2rem; font-weight: 700; }
+
+/* ---------- Scannen ---------- */
+.fotos { display: flex; flex-wrap: wrap; gap: 0.7rem; }
+.fotos li { position: relative; }
+.fotos img { display: block; width: 6rem; height: 8rem; object-fit: cover; border: 1px solid var(--linie-stark); border-radius: 4px; }
+.foto-weg { position: absolute; top: -0.5rem; right: -0.5rem; width: 2rem; height: 2rem; background: var(--blatt); border: 1.5px solid var(--tinte); border-radius: 50%; }
+.warten { text-align: center; padding: 2.2rem 1.2rem; }
+.warten .knopf { margin-top: 1.2rem; }
+.stift-laeuft { width: 9rem; height: 4px; margin: 0 auto 1.2rem; border-radius: 2px; background: linear-gradient(90deg, var(--koenigsblau) 0 50%, var(--linie) 50%); background-size: 200% 100%; animation: schreiben 1.6s ease-in-out infinite alternate; }
+@keyframes schreiben { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.pruef-kopf { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin: 0.9rem 2.75rem 0 1.9rem; font-size: 0.85rem; font-weight: 700; color: var(--grau); }
+.pruef-liste { counter-reset: karte; display: grid; gap: 0.55rem; margin-top: 0.4rem !important; }
+.pruef-liste li { counter-increment: karte; display: grid; grid-template-columns: 1.5rem minmax(0, 1fr) 2.75rem; gap: 0.4rem; align-items: start; }
+.pruef-liste li::before { content: counter(karte); font-size: 0.85rem; color: var(--grau); padding-top: 0.75rem; text-align: right; }
+.pruef-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.pruef-notiz { grid-column: 1 / -1; font-size: 0.9rem; min-height: 2.3rem !important; color: var(--grau) !important; }
+.neu-stapel > * { flex: 1 1 10rem; }
+@media (max-width: 560px) {
+  .pruef-kopf { display: none; }
+  .pruef-felder { grid-template-columns: 1fr; }
+  .pruef-liste li { padding-bottom: 0.55rem; border-bottom: 1px solid var(--linie); }
+}
+
+/* ---------- Mathe ---------- */
+.reiter { display: flex; gap: 0.3rem; border-bottom: 2px solid var(--tinte); padding: 0 0.3rem; margin-bottom: -0.2rem; }
+.reiter-knopf { padding: 0.55em 1em; border: 1.5px solid transparent; border-bottom: 0; border-radius: 8px 8px 0 0; background: transparent; font-weight: 600; color: var(--grau); margin-bottom: -2px; }
+.reiter-knopf[aria-selected="true"] { background: var(--blatt); border-color: var(--tinte); color: var(--tinte); border-bottom: 2px solid var(--blatt); }
+.rechner-layout { display: grid; gap: 1.5rem; align-items: start; }
+@media (min-width: 720px) { .rechner-layout { grid-template-columns: minmax(0, 23rem) minmax(0, 1fr); } }
+.rechner { background: var(--blatt); border: 2px solid var(--tinte); border-radius: 14px; padding: 0.8rem; box-shadow: 4px 4px 0 var(--schatten); max-width: 23rem; width: 100%; }
+.rechner-anzeige { background: var(--anzeige); border: 1px solid var(--linie-stark); border-radius: 8px; padding: 0.5rem 0.8rem; display: grid; min-height: 5.6rem; align-content: space-between; font-variant-numeric: tabular-nums; }
+.rechner-eingabe { border: 0 !important; background: transparent !important; padding: 0 !important; min-height: 2.2rem !important; font-size: 1.35rem; text-align: right; border-radius: 0 !important; }
+.rechner-ergebnis { display: block; text-align: right; font-size: 1.8rem; font-weight: 700; min-height: 2.6rem; overflow-wrap: anywhere; line-height: 1.4; }
+.rechner-ergebnis.ist-vorschau { font-size: 1.3rem; font-weight: 400; color: var(--grau); padding-top: 0.4rem; }
+.rechner-ergebnis.ist-fehler { font-size: 1rem; font-weight: 600; color: var(--rotstift); text-align: left; padding-top: 0.5rem; }
+.tasten { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; margin-top: 0.7rem; }
+.taste { min-height: 3rem; padding: 0; border: 1.5px solid var(--linie-stark); border-radius: 8px; background: var(--blatt); font-size: 1.2rem; font-weight: 600; touch-action: manipulation; }
+.taste:hover { background: var(--wahl); }
+.taste:active { transform: translateY(1px); }
+.taste-funk { font-size: 0.95rem; background: var(--wahl); border-color: var(--linie); }
+.taste-op { border-color: var(--tinte); font-size: 1.35rem; }
+.taste-loesch { color: var(--rotstift); border-color: var(--rotstift); font-size: 1.05rem; }
+.taste-gleich { grid-row: span 2; background: var(--koenigsblau); border-color: var(--koenigsblau); color: var(--auf-blau); font-size: 1.5rem; }
+.taste-gleich:hover { background: var(--tinte); border-color: var(--tinte); color: var(--blatt); }
+.rechner-verlauf { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; overflow: hidden; }
+.rechner-verlauf li + li { border-top: 1px solid var(--linie); }
+.verlauf-zeile { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; width: 100%; padding: 0.55rem 0.9rem; background: transparent; border: 0; text-align: left; font-variant-numeric: tabular-nums; }
+.verlauf-zeile:hover { background: var(--wahl); }
+.verlauf-zeile span { color: var(--grau); overflow-wrap: anywhere; }
+
+.plot-layout, .erkl-layout { display: grid; gap: 1rem; }
+.plot-eingaben { display: grid; gap: 0.5rem; }
+.plot-zeile { display: grid; grid-template-columns: 5.6rem minmax(0, 1fr); gap: 0.1rem 0.6rem; align-items: center; }
+.plot-name { font-weight: 700; display: flex; flex-direction: column; gap: 0.15rem; }
+.plot-name::after { content: ""; width: 3.4rem; border-top: 3px solid var(--koenigsblau); }
+.plot-name.kurve-1::after { border-top: 3px dashed var(--rotstift); }
+.plot-name.kurve-2::after { border-top: 3px dotted var(--gruen); }
+.fehlertext { grid-column: 2; font-size: 0.85rem; color: var(--rotstift); }
+.fehlertext:empty { display: none; }
+.plot-rahmen { position: relative; }
+.plot { display: block; width: 100%; aspect-ratio: 4 / 3; max-height: 30rem; border: 1.5px solid var(--tinte); border-radius: 6px; touch-action: none; cursor: crosshair; background: var(--blatt); }
+.plot-knoepfe { position: absolute; right: 0.5rem; bottom: 0.5rem; display: flex; gap: 0.3rem; background: var(--blatt); border: 1px solid var(--linie-stark); border-radius: 8px; padding: 0.15rem; }
+.plot-knoepfe .knopf { min-height: 2.75rem; }
+.ablesen { font-variant-numeric: tabular-nums; font-weight: 600; min-height: 1.5em; }
+.schritte { counter-reset: s; display: grid; gap: 0.9rem; }
+.schritte li { counter-increment: s; display: grid; grid-template-columns: 2rem minmax(0, 1fr); column-gap: 0.5rem; }
+.schritte li::before { content: counter(s) "."; font-family: var(--hand); color: var(--koenigsblau); font-size: 1.15rem; grid-row: span 2; line-height: 1.35; }
+.schritte li > * { grid-column: 2; }
+.schritte p, .uebungen p, .erkl-aufgabe { white-space: pre-line; }
+.erkl-aufgabe { font-weight: 700; font-size: 1.1rem; }
+.erkl-ergebnis { font-size: 1.15rem; font-weight: 700; }
+.erkl-tipp { border-left: 6px solid var(--marker); padding-left: 0.8rem; }
+.uebungen { list-style: decimal; padding-left: 1.4rem; display: grid; gap: 0.8rem; }
+details summary { cursor: pointer; color: var(--koenigsblau); font-weight: 600; padding: 0.3rem 0; }
+
+/* ---------- Probeklausur ---------- */
+.haken-liste { display: grid; gap: 0.1rem; }
+.haken-liste label { display: grid; grid-template-columns: auto 1fr; gap: 0 0.7rem; padding: 0.45rem 0.2rem; cursor: pointer; align-items: center; }
+.haken-liste input { width: 1.3rem; height: 1.3rem; accent-color: var(--koenigsblau); grid-row: span 2; }
+.haken-liste span { font-weight: 600; }
+.haken-liste small { color: var(--grau); font-size: 0.85rem; }
+.klausur-leiste { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; background: var(--blatt); border: 2px solid var(--tinte); border-radius: 8px; padding: 0.5rem 0.6rem 0.5rem 0.9rem; }
+.klausur-leiste strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.uhr-box { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.uhr-knapp { color: var(--rotstift); }
+.aufgaben { list-style: decimal; background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; padding: 0.2rem 1.1rem 0.2rem 2.7rem; }
+.aufgaben > li { padding: 1.1rem 0; }
+.aufgaben > li + li { border-top: 1px solid var(--linie); }
+.aufgaben > li::marker { font-weight: 700; }
+.aufgaben > li > * + * { margin-top: 0.6rem; }
+.aufgabe-kopf { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.aufgabe-text { font-weight: 700; white-space: pre-line; overflow-wrap: anywhere; }
+.aufgabe-punkte { white-space: nowrap; font-size: 0.88rem; color: var(--grau); }
+.mc { display: grid; gap: 0.15rem; }
+.mc-zeile { display: flex; gap: 0.7rem; align-items: center; padding: 0.45rem 0.3rem; border-radius: 6px; cursor: pointer; }
+.mc-zeile:hover { background: var(--wahl); }
+.mc-zeile input { width: 1.25rem; height: 1.25rem; accent-color: var(--koenigsblau); flex: none; }
+.etikett { display: block; font-size: 0.82rem; font-weight: 700; color: var(--grau); }
+.vor-zeilen { white-space: pre-line; overflow-wrap: anywhere; }
+.urteil-marke { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 700; }
+.urteil-marke.urteil-richtig { color: var(--gruen); }
+.urteil-marke.urteil-falsch { color: var(--rotstift); }
+.urteil-marke.urteil-fast { color: var(--tinte); }
+.zeugnis { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 1.3rem; align-items: center; }
+.zeugnis > * + * { margin-top: 0; }
+.zeugnis h1 { font-size: 1.35rem; line-height: 1.3; }
+.zeugnis-punkte { font-weight: 700; margin-top: 0.2rem; }
+/* Die Note steht da wie vom Lehrer mit Rotstift eingekringelt */
+.note-gross { width: 6.2rem; height: 6.2rem; display: grid; place-items: center; border: 3px solid var(--rotstift); border-radius: 50% 46% 53% 47% / 47% 53% 45% 52%; transform: rotate(-7deg); color: var(--rotstift); }
+.note-gross span { font-size: 3rem; line-height: 1; padding-bottom: 0.4rem; }
+.lehrer-kommentar, .korr-kommentar { color: var(--rotstift); line-height: 1.8; }
+.lehrer-kommentar { font-size: 1.2rem; }
+.korr-kommentar { font-size: 0.95rem; }
+.klausur-liste { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; overflow: hidden; margin-top: 0.7rem; }
+.klausur-liste li + li { border-top: 1px solid var(--linie); }
+.klausur-zeile { display: grid; grid-template-columns: 2.8rem minmax(0, 1fr); gap: 0 0.9rem; width: 100%; padding: 0.6rem 0.9rem; background: transparent; border: 0; text-align: left; align-items: center; }
+.klausur-zeile:hover { background: var(--wahl); }
+.note-klein { grid-row: span 2; width: 2.6rem; height: 2.6rem; display: grid; place-items: center; border: 2px solid var(--rotstift); border-radius: 50% 46% 53% 47% / 47% 53% 45% 52%; color: var(--rotstift); font-size: 1.25rem; line-height: 1; transform: rotate(-7deg); }
+.kl-titel { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kl-info { font-size: 0.85rem; color: var(--grau); }
+
+/* ---------- Statistik ---------- */
+.zahlen { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+@media (min-width: 640px) { .zahlen { grid-template-columns: repeat(4, 1fr); } }
+.zahlen > div { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; padding: 0.7rem 0.9rem; }
+.zahlen dt { font-size: 0.85rem; color: var(--grau); }
+.zahlen dd { font-size: 1.6rem; font-weight: 700; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.balken { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 2px; height: 11rem; }
+.balken-spalte { display: grid; grid-template-rows: 1.3rem minmax(0, 1fr) 1.4rem; padding: 0; border: 0; background: transparent; min-width: 0; border-radius: 4px; }
+.balken-wert { font-size: 0.8rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.balken-bahn { display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--linie-stark); }
+.balken-fuellung { width: min(62%, 1.5rem); background: var(--koenigsblau); border-radius: 4px 4px 0 0; }
+.balken-spalte:hover .balken-fuellung, .balken-spalte:focus-visible .balken-fuellung { background: var(--tinte); }
+.balken-tag { font-size: 0.75rem; color: var(--grau); white-space: nowrap; overflow: visible; }
+.ist-heute .balken-tag { color: var(--tinte); font-weight: 700; }
+.diagramm-ablesen { font-size: 0.9rem; min-height: 1.5em; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 0.4rem 0.6rem 0.4rem 0; border-bottom: 1px solid var(--linie); font-size: 0.92rem; }
+thead th { color: var(--grau); font-size: 0.85rem; }
+tbody th { font-weight: 400; }
+
+/* ---------- Fenster und Meldungen ---------- */
+.modal-huelle { position: fixed; inset: 0; z-index: 50; background: rgba(12, 20, 44, 0.55); display: grid; align-items: end; justify-items: center; }
+.modal { width: min(100%, 34rem); max-height: 92vh; overflow: auto; background: var(--blatt); border: 2px solid var(--tinte); border-bottom: 0; border-radius: 14px 14px 0 0; padding: 0.7rem 1.15rem 1.4rem; animation: hoch 0.18s ease-out; }
+@keyframes hoch { from { transform: translateY(20px); opacity: 0; } }
+@media (min-width: 640px) {
+  .modal-huelle { align-items: center; padding: 1rem; }
+  .modal { border-bottom: 2px solid var(--tinte); border-radius: 12px; }
+}
+.modal-kopf { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
+.modal-inhalt > * + * { margin-top: 0.9rem; }
+#toasts { position: fixed; left: 0; right: 0; bottom: 5.2rem; z-index: 60; display: grid; justify-items: center; gap: 0.4rem; padding: 0 1rem; pointer-events: none; }
+.toast { background: var(--tinte); color: var(--papier); padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; max-width: 30rem; box-shadow: 3px 3px 0 var(--schatten); }
+.toast-fehler { background: var(--rotstift); color: var(--auf-rot); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .stift-laeuft { background-position: 50% 0; }
+}
