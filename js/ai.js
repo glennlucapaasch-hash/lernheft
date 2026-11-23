@@ -60,6 +60,12 @@ export async function bildVorbereiten(datei, maxKante = 1568) {
   );
 }
 
+// Das echte Format melden: Safari liefert manchmal PNG statt JPG.
+function bildTyp(blob) {
+  const t = String(blob?.type || '').toLowerCase();
+  return ['image/jpeg', 'image/png', 'image/gif', 'image/webp'].includes(t) ? t : 'image/jpeg';
+}
+
 function jsonAusText(text) {
   const t = String(text || '').replace(/```(?:json)?/g, '');
   const start = t.indexOf('{');
@@ -72,7 +78,7 @@ async function perSchluessel({ anweisung, bilder, schema, maxTokens }) {
   const { apiKey, model } = einstellungen();
   const content = [];
   for (const b of bilder) {
-    content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobZuBase64(b) } });
+    content.push({ type: 'image', source: { type: 'base64', media_type: bildTyp(b), data: await blobZuBase64(b) } });
   }
   content.push({ type: 'text', text: `${anweisung}\n\nGib dein Ergebnis ausschließlich über das Werkzeug „antwort“ zurück.` });
 
@@ -425,7 +431,7 @@ export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
     const messages = [];
     for (const m of letzte) {
       const content = [];
-      if (m.bild) content.push({ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: await blobZuBase64(m.bild) } });
+      if (m.bild) content.push({ type: 'image', source: { type: 'base64', media_type: bildTyp(m.bild), data: await blobZuBase64(m.bild) } });
       content.push({ type: 'text', text: m.text || '(Foto)' });
       messages.push({ role: m.role, content });
     }
