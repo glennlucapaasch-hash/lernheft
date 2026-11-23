@@ -1,7 +1,7 @@
 // Speicher für Konten, Sitzungen, Einstellungen und Lerndaten – als JSON-Dateien.
 // Für eine Klasse (einige Dutzend Personen) ist das schnell und einfach zu sichern.
 
-import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, rmSync, chmodSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, mkdirSync, existsSync, rmSync, chmodSync, statSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
@@ -19,11 +19,28 @@ export const MODELLE = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-
 function lesen(datei, standard) {
   try { return JSON.parse(readFileSync(path.join(ordner, datei), 'utf8')); } catch { return standard; }
 }
+// Dateien, die auch von außen geändert werden (z. B. durch server/benutzer.js), vor dem Lesen frisch laden.
+const stand = {};
+function frisch(datei) {
+  try {
+    const m = statSync(path.join(ordner, datei)).mtimeMs;
+    if (stand[datei] === m) return false;
+    stand[datei] = m;
+    return true;
+  } catch { return false; }
+}
+function aktuell() {
+  if (frisch('konten.json')) konten = lesen('konten.json', {});
+  if (frisch('sitzungen.json')) sitzungen = lesen('sitzungen.json', {});
+  if (frisch('einstellungen.json')) einst = { ...STANDARD, ...lesen('einstellungen.json', {}) };
+}
+
 function schreiben(datei, daten) {
   const ziel = path.join(ordner, datei);
   const tmp = `${ziel}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(daten), { mode: 0o600 });
   renameSync(tmp, ziel);
+  try { stand[datei] = statSync(ziel).mtimeMs; } catch { /* egal */ }
 }
 
 export function oeffnen(pfad) {
@@ -34,6 +51,7 @@ export function oeffnen(pfad) {
   sitzungen = lesen('sitzungen.json', {});
   einst = { ...STANDARD, ...lesen('einstellungen.json', {}) };
   nutzung = lesen('nutzung.json', {});
+  for (const d of ['konten.json', 'sitzungen.json', 'einstellungen.json']) frisch(d);
 }
 
 // ---------- Passwörter ----------
@@ -51,6 +69,7 @@ export const nameNormal = (name) => String(name || '').replace(/\([^)]*\)/g, '')
   .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss').replace(/\s+/g, '.');
 
 export function pruefen(name, passwort) {
+  aktuell();
   const n = nameNormal(name);
   const k = konten[n];
   if (!k || !passwort) {
@@ -65,6 +84,7 @@ export function pruefen(name, passwort) {
 }
 
 export function passwortSetzen(name, passwort, mussWechseln = false) {
+  aktuell();
   const k = konten[name];
   if (!k) throw new Error('Diesen Namen gibt es nicht.');
   k.salz = crypto.randomBytes(16).toString('hex');
@@ -83,6 +103,7 @@ export function passwortNeu(name) {
 }
 
 export function kontoAnlegen(rohName, { admin = false, passwort } = {}) {
+  aktuell();
   const name = nameNormal(rohName);
   if (!nameOk(name)) throw new Error('Der Name darf nur Buchstaben, Zahlen, Punkt, Minus und Unterstrich haben (2–30 Zeichen).');
   if (konten[name]) throw new Error(`„${name}“ gibt es schon.`);
@@ -93,6 +114,7 @@ export function kontoAnlegen(rohName, { admin = false, passwort } = {}) {
 }
 
 export function kontoLoeschen(name) {
+  aktuell();
   if (!konten[name]) throw new Error('Diesen Namen gibt es nicht.');
   delete konten[name];
   schreiben('konten.json', konten);
@@ -102,6 +124,7 @@ export function kontoLoeschen(name) {
 }
 
 export function kontenListe() {
+  aktuell();
   const heute = nutzung[tag()] || {};
   return Object.entries(konten)
     .map(([name, k]) => ({ name, admin: Boolean(k.admin), angelegt: k.angelegt, letzterLogin: k.letzterLogin, kiHeute: heute[name] || 0, kiMonat: kiMonat(name) }))
@@ -112,6 +135,7 @@ export function kontenListe() {
 const tokenHash = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
 
 export function sitzungAnlegen(name) {
+  aktuell();
   const token = crypto.randomBytes(32).toString('base64url');
   const jetzt = Date.now();
   for (const [t, s] of Object.entries(sitzungen)) if (s.bis < jetzt) delete sitzungen[t];
@@ -121,6 +145,7 @@ export function sitzungAnlegen(name) {
 }
 
 export function sitzung(token) {
+  aktuell();
   const s = sitzungen[tokenHash(token)];
   if (!s || s.bis < Date.now() || !konten[s.name]) return null;
   return { name: s.name, admin: Boolean(konten[s.name].admin), mussWechseln: Boolean(konten[s.name].mussWechseln) };
@@ -142,8 +167,9 @@ export function fehlversuch(ip) {
 }
 
 // ---------- Einstellungen ----------
-export const einstellungen = () => ({ ...einst });
+export const einstellungen = () => { aktuell(); return { ...einst }; };
 export function einstellungenSetzen({ apiKey, model, tageslimit }) {
+  aktuell();
   if (typeof apiKey === 'string' && apiKey.trim()) einst.apiKey = apiKey.trim();
   if (apiKey === null) einst.apiKey = '';
   if (MODELLE.includes(model)) einst.model = model;

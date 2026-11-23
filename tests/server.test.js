@@ -27,9 +27,7 @@ test('Server: Konten, Daten, Rechte, Schlüssel bleibt geheim', async () => {
   const pwGlenn = /glenn\s+(\S+)/.exec(aus)[1];
   assert.match(pwGlenn, /^[A-Za-z]+-[A-Za-z]+-[A-Za-z]+-\d\d$/);
 
-  // Server neu laden lassen: Konten werden beim Start gelesen
-  proc.kill(); proc = spawn(process.execPath, ['server/server.js'], { env: { ...process.env, PORT, DATEN: daten, COOKIE_SECURE: '0' }, stdio: 'ignore' });
-  for (let i = 0; i < 50; i++) { try { await fetch(URL_); break; } catch { await new Promise((r) => setTimeout(r, 100)); } }
+  // Kein Neustart: der laufende Server muss das neue Konto sofort kennen
 
   assert.equal((await fetch(`${URL_}/api/ich`)).status, 401);
   assert.equal((await anmelden('glenn', 'falsch')).status, 401);
