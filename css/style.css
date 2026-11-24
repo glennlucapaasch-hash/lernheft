@@ -1439,3 +1439,16 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
 .lr-chip { padding: .25rem .6rem; border-radius: 999px; background: var(--wahl); color: var(--grau); font-size: .85rem; font-weight: 600; }
 .lr-chip.ist-fertig { background: color-mix(in srgb, var(--gruen) 20%, var(--blatt)); color: var(--tinte); animation: livePop .35s; }
 .lr-weiter { font-weight: 700; color: var(--gruen); animation: livePuls 1s infinite; }
+.lr-kachel { cursor: zoom-in; }
+.lr-lupe { position: absolute; top: .4rem; right: .4rem; padding: .15rem .5rem; border-radius: 6px; background: rgba(0,0,0,.55); color: #fff; font-size: .75rem; font-weight: 600; display: none; }
+.lr-kachel.teilt .lr-lupe { display: block; animation: livePuls 1.4s 3; }
+.lr-zu { display: none; }
+.lr-kachel.ist-gross { position: fixed; inset: 0; z-index: 200; aspect-ratio: auto; border-radius: 0; cursor: zoom-out; background: #000; animation: grossAuf .25s ease-out; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.lr-kachel.ist-gross video { object-fit: contain; transform: none; background: #000; }
+.lr-kachel.ist-gross.ist-ich:not(.teilt) video { transform: scaleX(-1); }
+.lr-kachel.ist-gross .lr-lupe { display: none; }
+.lr-kachel.ist-gross .lr-zu { display: grid; place-items: center; position: absolute; top: calc(env(safe-area-inset-top) + .8rem); right: .8rem; width: 2.8rem; height: 2.8rem; border-radius: 50%; background: rgba(0,0,0,.6); color: #fff; font-size: 1.3rem; }
+.lr-kachel.ist-gross .lr-name { bottom: calc(env(safe-area-inset-bottom) + .8rem); left: .8rem; font-size: 1rem; }
+body.lr-vollbild { overflow: hidden; }
+body.lr-vollbild .chat-blase, body.lr-vollbild .nav-unten { visibility: hidden; }
+@keyframes grossAuf { from { transform: scale(.6); opacity: 0; } }

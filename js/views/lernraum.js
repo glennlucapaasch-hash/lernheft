@@ -172,6 +172,7 @@ function raumVerlassen(R) {
   R.aus = true;
   clearTimeout(R.takt);
   clearInterval(R.uhr);
+  document.body.classList.remove('lr-vollbild');
   for (const n of [...R.peers.keys()]) peerWeg(R, n);
   R.lokal?.getTracks().forEach((t) => t.stop());
   R.bildschirmTrack?.stop();
@@ -192,9 +193,22 @@ function kachel(name, eigene) {
   const video = h('video', { autoplay: true, playsinline: true, muted: eigene, 'aria-label': `Video von ${name}` });
   video.muted = eigene; // muss als Eigenschaft gesetzt werden (Safari)
   video.setAttribute('playsinline', '');
-  return h('div', { class: `lr-kachel ${eigene ? 'ist-ich' : 'verbindet'}`, 'data-name': name }, video,
+  const k = h('div', { class: `lr-kachel ${eigene ? 'ist-ich' : 'verbindet'}`, 'data-name': name, role: 'button', tabindex: '0', 'aria-label': `Video von ${name} vergrößern`,
+    onclick: () => grossUmschalten(k), onkeydown: (e) => { if (e.key === 'Enter' || e.key === 'Escape') grossUmschalten(k, e.key === 'Escape' ? false : undefined); } }, video,
+    h('span', { class: 'lr-lupe', 'aria-hidden': 'true' }, '⤢ Tippen zum Vergrößern'),
+    h('span', { class: 'lr-zu', 'aria-hidden': 'true' }, '✕'),
     h('div', { class: 'lr-initiale', 'aria-hidden': 'true' }, name.slice(0, 1).toUpperCase()),
     h('span', { class: 'lr-name' }, eigene ? `${name} (du)` : name, h('span', { class: 'lr-stumm', hidden: true, 'aria-label': 'stumm' }, ' 🔇')));
+  return k;
+}
+
+// Ein Video groß über den ganzen Bildschirm legen (z. B. geteilter Bildschirm), nochmal tippen = klein
+function grossUmschalten(k, an = !k.classList.contains('ist-gross')) {
+  document.querySelectorAll('.lr-kachel.ist-gross').forEach((x) => x !== k && x.classList.remove('ist-gross'));
+  k.classList.toggle('ist-gross', an);
+  document.body.classList.toggle('lr-vollbild', an);
+  k.setAttribute('aria-label', `Video von ${k.dataset.name} ${an ? 'verkleinern' : 'vergrößern'}`);
+  k.querySelector('video')?.play().catch(() => {});
 }
 
 function zeichneLeute(R) {
