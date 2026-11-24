@@ -71,3 +71,18 @@ test('Server: Konten, Daten, Rechte, Schlüssel bleibt geheim', async () => {
   assert.equal((await fetch(`${URL_}/api/verwaltung/konten/anna.mueller`, mit(glenn, { method: 'DELETE' }))).status, 200);
   assert.equal((await anmelden('anna.mueller', neu.passwort)).status, 401);
 });
+
+test('Server: an bestimmte Personen schicken', async () => {
+  execFileSync(process.execPath, ['server/benutzer.js', 'anlegen', 'ben', 'carla'], { env: { ...process.env, DATEN: daten } });
+  const pw = (n) => /\S+\s+(\S+)/.exec(execFileSync(process.execPath, ['server/benutzer.js', 'passwort', n], { env: { ...process.env, DATEN: daten } }).toString().trim())[1];
+  const ben = keks(await anmelden('ben', pw('ben')));
+  const carla = keks(await anmelden('carla', pw('carla')));
+  const r = await fetch(`${URL_}/api/geteilt`, mit(ben, { method: 'POST', body: JSON.stringify({ name: 'Nur für Carla', fach: 'englisch', karten: [{ front: 'a', back: 'b' }], an: ['carla'] }) }));
+  const { id } = await r.json();
+  const personen = await (await fetch(`${URL_}/api/personen`, mit(ben))).json();
+  assert.ok(personen.includes('carla') && !personen.includes('ben'));
+  assert.ok((await (await fetch(`${URL_}/api/geteilt`, mit(carla))).json()).some((g) => g.id === id));
+  const glenn = keks(await anmelden('glenn', pw('glenn')));
+  assert.ok(!(await (await fetch(`${URL_}/api/geteilt`, mit(glenn))).json()).some((g) => g.id === id));
+  assert.equal((await fetch(`${URL_}/api/geteilt/${id}`, mit(glenn))).status, 404);
+});

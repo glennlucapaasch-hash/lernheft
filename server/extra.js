@@ -34,13 +34,26 @@ export function naechtlicheSicherung() {
 }
 
 // ---------- Geteilte Stapel ----------
-export const geteiltListe = () => lesen('geteilt.json', []).map(({ karten, ...rest }) => ({ ...rest, anzahl: karten.length }));
-export const geteiltHolen = (id) => lesen('geteilt.json', []).find((g) => g.id === id);
-export function geteiltAnlegen(von, { name, fach, karten }) {
+const darfSehen = (g, wer) => !g.an?.length || g.an.includes(wer) || g.von === wer;
+export const geteiltListe = (wer) => lesen('geteilt.json', []).filter((g) => darfSehen(g, wer))
+  .map(({ karten, notiz, ...rest }) => ({ ...rest, typ: rest.typ || 'stapel', anzahl: karten?.length || 0 }));
+export const geteiltHolen = (id, wer) => { const g = lesen('geteilt.json', []).find((x) => x.id === id); return g && darfSehen(g, wer) ? g : null; };
+export function geteiltAnlegen(von, { name, fach, karten, an, typ, notiz }) {
+  const empfaenger = Array.isArray(an) ? [...new Set(an.map(String).filter((n) => n !== von && db.vorhanden(n)))].slice(0, 100) : [];
+  if (Array.isArray(an) && an.length && !empfaenger.length) throw Object.assign(new Error('Keine gültigen Empfänger.'), { status: 400 });
+  if (typ === 'notiz') {
+    if (!notiz || !Array.isArray(notiz.striche)) throw Object.assign(new Error('Die Notiz ist leer.'), { status: 400 });
+    const liste = lesen('geteilt.json', []);
+    const e = { id: crypto.randomUUID(), typ: 'notiz', von, an: empfaenger, name: String(name || 'Notiz').slice(0, 80), fach: String(fach || 'sonstiges').slice(0, 20), datum: Date.now(), karten: [],
+      notiz: { papier: String(notiz.papier || 'karo').slice(0, 10), seiten: Math.min(50, Number(notiz.seiten) || 1), text: String(notiz.text || '').slice(0, 20000), striche: notiz.striche.slice(0, 20000) } };
+    liste.unshift(e);
+    schreiben('geteilt.json', liste.slice(0, 300));
+    return { id: e.id };
+  }
   if (!name || !Array.isArray(karten) || !karten.length) throw Object.assign(new Error('Der Stapel ist leer.'), { status: 400 });
   const liste = lesen('geteilt.json', []);
   const eintrag = {
-    id: crypto.randomUUID(), von, name: String(name).slice(0, 60), fach: String(fach || 'sonstiges').slice(0, 20), datum: Date.now(),
+    id: crypto.randomUUID(), typ: 'stapel', von, an: empfaenger, name: String(name).slice(0, 60), fach: String(fach || 'sonstiges').slice(0, 20), datum: Date.now(),
     karten: karten.slice(0, 500).map((k) => ({ front: String(k.front || '').slice(0, 600), back: String(k.back || '').slice(0, 1500), note: String(k.note || '').slice(0, 400), bildVorn: k.bildVorn || undefined, bildHinten: k.bildHinten || undefined })),
   };
   liste.unshift(eintrag);

@@ -860,3 +860,5 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 .reiter::-webkit-scrollbar { display: none; }
 .reiter-knopf { white-space: nowrap; flex: none; }
 .seite { overflow-x: clip; }
+.personen-liste { max-height: 16rem; overflow-y: auto; margin-top: .5rem; border: 1px solid var(--linie); border-radius: 8px; padding: .2rem .6rem; }
+.geteilt-liste li > .icon { color: var(--koenigsblau); flex: none; }

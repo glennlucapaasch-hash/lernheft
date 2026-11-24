@@ -3,7 +3,8 @@
 import { h, icon, toast, nachfragen, modal, datumKurz, mehrzahl } from '../dom.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
-import { kiVerfuegbar, stoffErkennen } from '../ai.js';
+import { kiVerfuegbar, stoffErkennen, istServerModus } from '../ai.js';
+import { sendenDialog, sendenApi } from './senden.js';
 
 const B = 1000;           // logische Blattbreite
 const SEITE = 1414;       // logische Seitenhöhe (A4-Verhältnis)
@@ -100,6 +101,31 @@ function vorschau(n) {
   return c;
 }
 
+const post = { liste: null, laden: false };
+function posteingang(ctx) {
+  if (!istServerModus()) return null;
+  if (!post.liste && !post.laden) {
+    post.laden = true;
+    sendenApi('/api/geteilt').then((l) => { post.liste = l.filter((g) => g.typ === 'notiz' && g.von !== ctx.konto?.name); }).catch(() => { post.liste = []; })
+      .finally(() => { post.laden = false; if (location.hash === '#notizen') ctx.refresh(); });
+  }
+  if (!post.liste?.length) return null;
+  return h('section', { class: 'geteilt' },
+    h('h2', null, 'Dir geschickt'),
+    h('ul', { class: 'geteilt-liste' }, post.liste.map((g) => h('li', null,
+      icon('stift', 20),
+      h('div', { class: 'geteilt-text' }, h('strong', null, g.name), h('small', null, `von ${g.von}${g.an?.length ? ' an dich' : ' an alle'} · ${datumKurz(g.datum)}`)),
+      h('button', { class: 'knopf knopf-mini', onclick: async () => {
+        try {
+          const voll = await sendenApi(`/api/geteilt/${g.id}`);
+          const n = { id: store.uid(), titel: voll.name, fach: voll.fach, papier: voll.notiz.papier, seiten: voll.notiz.seiten, striche: voll.notiz.striche, text: voll.notiz.text, geaendert: Date.now() };
+          liste().unshift(n); store.save();
+          toast('Notiz übernommen.');
+          ui.id = n.id; ctx.refresh();
+        } catch (e) { toast(e.message, 'fehler'); }
+      } }, 'Übernehmen')))));
+}
+
 function uebersicht(ctx) {
   const alle = liste().slice().sort((a, b) => b.geaendert - a.geaendert);
   const oeffnen = (id) => { ui.id = id; ctx.refresh(); scrollTo(0, 0); };
@@ -115,7 +141,8 @@ function uebersicht(ctx) {
             h('span', { class: 'notiz-kachel-info' }, `${FAECHER[n.fach]?.name || 'Sonstiges'} · ${datumKurz(n.geaendert)}`))))
       : h('div', { class: 'blatt leer' },
           h('p', null, 'Schreib mit dem Apple Pencil wie auf Papier: Mitschriften, Rechenwege, Skizzen. Aus jeder Notiz kann die KI Karteikarten machen.'),
-          h('button', { class: 'knopf knopf-haupt', onclick: () => oeffnen(neueNotiz().id) }, icon('stift', 18), 'Erste Notiz anlegen')));
+          h('button', { class: 'knopf knopf-haupt', onclick: () => oeffnen(neueNotiz().id) }, icon('stift', 18), 'Erste Notiz anlegen')),
+    posteingang(ctx));
 }
 
 // ---------- Editor ----------
@@ -413,6 +440,7 @@ function editor(ctx, n) {
       h('div', { class: 'reihe' },
         h('button', { class: 'knopf', onclick: () => { zu(); karten(); } }, icon('karten', 18), 'Karteikarten daraus machen'),
         h('button', { class: 'knopf', onclick: () => { zu(); teilen(); } }, 'Als Bild teilen'),
+        istServerModus() && h('button', { class: 'knopf', onclick: () => { zu(); sendenDialog({ titel: `„${n.titel || 'Notiz'}“ schicken`, beschreibung: 'Die Empfänger bekommen eine Kopie deiner Notiz in ihre Notizen.', daten: { typ: 'notiz', name: n.titel || 'Notiz', fach: n.fach, notiz: { papier: n.papier, seiten: n.seiten, text: n.text, striche } } }); } }, icon('teilen', 18), 'Schicken'),
         h('button', { class: 'knopf', onclick: () => { n.seiten += 1; groesse(); speichern(); zu(); } }, icon('plus', 18), 'Seite anhängen')),
       h('div', { class: 'reihe' },
         h('button', { class: 'knopf knopf-gefahr-leise', onclick: () => { zu(); if (striche.length) { aendern([]); alles(); toast('Geleert – mit Rückgängig holst du alles zurück.'); } } }, 'Alles wegradieren'),

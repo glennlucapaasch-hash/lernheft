@@ -6,6 +6,7 @@ import { lernenStarten } from './lernen.js';
 import { stapelKachel } from './start.js';
 import { bildAlsDaten } from '../bild.js';
 import { istServerModus } from '../ai.js';
+import { sendenDialog } from './senden.js';
 
 const serverApi = async (pfad, opts = {}) => {
   const r = await fetch(pfad, { credentials: 'same-origin', ...opts, headers: { 'content-type': 'application/json', 'x-lernheft': '1' } });
@@ -170,18 +171,18 @@ function geteiltBereich(ctx) {
   if (!istServerModus()) return null;
   if (!geteiltUi.liste && !geteiltUi.laden) {
     geteiltUi.laden = true;
-    serverApi('/api/geteilt').then((l) => { geteiltUi.liste = l; }).catch(() => { geteiltUi.liste = []; }).finally(() => { geteiltUi.laden = false; if (location.hash === '#karten') ctx.refresh(); });
+    serverApi('/api/geteilt').then((l) => { geteiltUi.liste = l.filter((g) => g.typ !== 'notiz'); }).catch(() => { geteiltUi.liste = []; }).finally(() => { geteiltUi.laden = false; if (location.hash === '#karten') ctx.refresh(); });
   }
   const ich = ctx.konto?.name;
   const liste = geteiltUi.liste || [];
   return h('section', { class: 'geteilt' },
-    h('div', { class: 'abschnitt-kopf' }, h('h2', null, 'Von anderen geteilt'),
+    h('div', { class: 'abschnitt-kopf' }, h('h2', null, 'Geschickt und geteilt'),
       h('button', { class: 'knopf knopf-leise', onclick: () => { geteiltUi.liste = null; ctx.refresh(); } }, 'Aktualisieren')),
     !geteiltUi.liste ? h('p', { class: 'hinweis' }, 'Lade …')
-      : !liste.length ? h('p', { class: 'hinweis' }, 'Noch nichts geteilt. Öffne einen Stapel und tippe auf „Mit allen teilen“.')
+      : !liste.length ? h('p', { class: 'hinweis' }, 'Noch nichts da. Öffne einen Stapel und tippe auf „Schicken“.')
       : h('ul', { class: 'geteilt-liste' }, liste.map((g) => h('li', null,
           h('span', { class: `geteilt-punkt farbe-${FAECHER[g.fach]?.farbe || 'weiss'}` }),
-          h('div', { class: 'geteilt-text' }, h('strong', null, g.name), h('small', null, `${FAECHER[g.fach]?.name || 'Sonstiges'} · ${mehrzahl(g.anzahl, 'Karte', 'Karten')} · von ${g.von}`)),
+          h('div', { class: 'geteilt-text' }, h('strong', null, g.name), h('small', null, `${FAECHER[g.fach]?.name || 'Sonstiges'} · ${mehrzahl(g.anzahl, 'Karte', 'Karten')} · ${g.von === ich ? (g.an?.length ? `von dir an ${g.an.join(', ')}` : 'von dir an alle') : `von ${g.von}${g.an?.length ? ' an dich' : ' an alle'}`}`)),
           h('button', { class: 'knopf knopf-mini', onclick: async () => {
             try {
               const voll = await serverApi(`/api/geteilt/${g.id}`);
@@ -251,13 +252,11 @@ function detail(ctx, deck) {
       h('button', { class: 'knopf', onclick: () => kartenDialog(ctx, deck) }, icon('plus', 18), 'Karte'),
       h('button', { class: 'knopf', onclick: () => listenDialog(ctx, deck) }, 'Liste einfügen'),
       h('button', { class: 'knopf', onclick: () => ctx.go('scannen', { deckId: deck.id }) }, icon('scan', 18), 'Seite scannen'),
-      istServerModus() && alle.length > 0 && h('button', { class: 'knopf', onclick: async () => {
-        if (!(await nachfragen('Mit allen teilen?', `Alle mit Zugang zum Lernheft können „${deck.name}“ (${mehrzahl(alle.length, 'Karte', 'Karten')}) in ihre Karten übernehmen. Dein Lernstand wird nicht geteilt.`, 'Teilen'))) return;
-        try {
-          await serverApi('/api/geteilt', { method: 'POST', body: JSON.stringify({ name: deck.name, fach: deck.fach, karten: alle.map(({ front, back, note, bildVorn, bildHinten }) => ({ front, back, note, bildVorn, bildHinten })) }) });
-          toast('Geteilt – alle sehen den Stapel jetzt unter „Von anderen geteilt“.');
-        } catch (e) { toast(e.message, 'fehler'); }
-      } }, icon('teilen', 18), 'Mit allen teilen')),
+      istServerModus() && alle.length > 0 && h('button', { class: 'knopf', onclick: () => sendenDialog({
+        titel: `„${deck.name}“ schicken`,
+        beschreibung: `${mehrzahl(alle.length, 'Karte', 'Karten')} – die Empfänger können den Stapel in ihre Karten übernehmen. Dein Lernstand wird nicht mitgeschickt.`,
+        daten: { name: deck.name, fach: deck.fach, karten: alle.map(({ front, back, note, bildVorn, bildHinten }) => ({ front, back, note, bildVorn, bildHinten })) },
+      }) }, icon('teilen', 18), 'Schicken')),
     alle.length > 8 && h('input', { type: 'search', class: 'suche', placeholder: 'Karten durchsuchen', 'aria-label': 'Karten durchsuchen', value: ui.suche, oninput: (e) => { ui.suche = e.target.value; listeFuellen(); } }),
     liste);
 }

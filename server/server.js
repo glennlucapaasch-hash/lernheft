@@ -171,10 +171,11 @@ async function api(req, res, pfad) {
   }
 
   // ----- Teilen, Rangliste, Erinnerungen -----
-  if (pfad === '/api/geteilt' && methode === 'GET') return senden(res, 200, extra.geteiltListe());
+  if (pfad === '/api/geteilt' && methode === 'GET') return senden(res, 200, extra.geteiltListe(konto.name));
+  if (pfad === '/api/personen' && methode === 'GET') return senden(res, 200, db.kontenListe().map((k) => k.name).filter((n) => n !== konto.name));
   if (pfad === '/api/geteilt' && methode === 'POST') return senden(res, 200, extra.geteiltAnlegen(konto.name, await koerper(req, MAX_DATEN_BODY)));
   const gm = /^\/api\/geteilt\/([\w-]+)$/.exec(pfad);
-  if (gm && methode === 'GET') { const g = extra.geteiltHolen(gm[1]); return g ? senden(res, 200, g) : fehler(res, 404, 'Gibt es nicht mehr.'); }
+  if (gm && methode === 'GET') { const g = extra.geteiltHolen(gm[1], konto.name); return g ? senden(res, 200, g) : fehler(res, 404, 'Gibt es nicht mehr.'); }
   if (gm && methode === 'DELETE') { extra.geteiltLoeschen(gm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
   if (pfad === '/api/duell' && methode === 'POST') return senden(res, 200, extra.duellAnlegen(konto.name, await koerper(req, 200000)));
   const dm = /^\/api\/duell\/(\d{4})(\/(beitreten|start|antwort))?$/.exec(pfad);
