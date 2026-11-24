@@ -1419,3 +1419,4 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
   .lr-links .lr-raster { grid-template-columns: 1fr !important; }
 }
 .lr-hilfe { display: grid; gap: .5rem; padding-left: 1.2rem; list-style: disc; line-height: 1.45; }
+.lr-ton { position: sticky; top: .5rem; z-index: 5; justify-self: center; animation: livePuls 1.2s infinite; }

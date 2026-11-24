@@ -91,17 +91,21 @@ function neuerRaum(ctx, stand, lokal, ice) {
 function peerAnlegen(R, name, seit) {
   const pc = new RTCPeerConnection({ iceServers: R.ice.iceServers });
   const p = { pc, name, seit, polite: R.ich > name, makingOffer: false, ignoreOffer: false, stream: new MediaStream(), kachel: null };
-  const audio = R.lokal?.getAudioTracks()[0];
-  pc.addTransceiver(audio || 'audio', { direction: 'sendrecv' });
-  pc.addTransceiver(R.bildschirmTrack || R.kameraTrack || 'video', { direction: 'sendrecv' });
-  pc.ontrack = (e) => { if (!p.stream.getTracks().includes(e.track)) p.stream.addTrack(e.track); const v = p.kachel?.querySelector('video'); if (v && v.srcObject !== p.stream) { v.srcObject = p.stream; } v?.play().catch(() => {}); };
+  // Nur eine Seite (die „unhöfliche“) legt die Spuren an und schickt das Angebot. Die andere antwortet und hängt ihre
+  // eigenen Spuren an die empfangenen Spuren an. So gibt es nie zwei Angebote gleichzeitig – das führte zu Ton nur in eine Richtung.
+  if (!p.polite) {
+    pc.addTransceiver(R.lokal?.getAudioTracks()[0] || 'audio', { direction: 'sendrecv' });
+    pc.addTransceiver(R.bildschirmTrack || R.kameraTrack || 'video', { direction: 'sendrecv' });
+  }
+  pc.ontrack = (e) => { if (!p.stream.getTracks().includes(e.track)) p.stream.addTrack(e.track); const v = p.kachel?.querySelector('video'); if (v && v.srcObject !== p.stream) { v.srcObject = p.stream; } abspielen(R, v); };
   pc.onicecandidate = ({ candidate }) => { if (candidate) R.senden(name, 'ice', candidate.toJSON()); };
   pc.onnegotiationneeded = async () => {
+    if (p.polite) return;
     try { p.makingOffer = true; await pc.setLocalDescription(); R.senden(name, 'offer', pc.localDescription.toJSON()); } catch { /* nächster Versuch */ } finally { p.makingOffer = false; }
   };
   pc.onconnectionstatechange = () => {
     p.kachel?.classList.toggle('verbindet', !['connected', 'completed'].includes(pc.connectionState));
-    if (pc.connectionState === 'failed') { try { pc.restartIce(); } catch { /* egal */ } }
+    if (pc.connectionState === 'failed' && !p.polite) { try { pc.restartIce(); } catch { /* egal */ } }
   };
   R.peers.set(name, p);
   return p;
@@ -125,7 +129,15 @@ async function signalVerarbeiten(R, s) {
       p.ignoreOffer = !p.polite && kollision;
       if (p.ignoreOffer) return;
       await pc.setRemoteDescription(s.daten);
-      if (s.typ === 'offer') { await pc.setLocalDescription(); R.senden(s.von, 'answer', pc.localDescription.toJSON()); }
+      if (s.typ === 'offer') {
+        // Eigene Spuren an die angebotenen Kanäle hängen
+        for (const t of pc.getTransceivers()) {
+          const art = t.receiver.track?.kind;
+          const spur = art === 'audio' ? R.lokal?.getAudioTracks()[0] : art === 'video' ? (R.bildschirmTrack || R.kameraTrack) : null;
+          if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
+          if (spur && t.sender.track !== spur) await t.sender.replaceTrack(spur);
+        }
+        await pc.setLocalDescription(); R.senden(s.von, 'answer', pc.localDescription.toJSON()); }
     } else if (s.typ === 'ice') {
       try { await pc.addIceCandidate(s.daten); } catch (e) { if (!p.ignoreOffer) throw e; }
     }
@@ -167,6 +179,14 @@ function raumVerlassen(R) {
   if (raum === R) raum = null;
 }
 
+// iPhone & Co. spielen Ton erst nach einer Berührung ab. Wenn das blockiert wird: Knopf „Ton einschalten“ zeigen.
+function abspielen(R, v) {
+  if (!v) return;
+  v.play().catch(() => {
+    if (R.el.tonKnopf) R.el.tonKnopf.hidden = false;
+  });
+}
+
 // ---------------------------------------------------------------- Video-Kacheln
 function kachel(name, eigene) {
   const video = h('video', { autoplay: true, playsinline: true, muted: eigene, 'aria-label': `Video von ${name}` });
@@ -188,7 +208,7 @@ function zeichneLeute(R) {
     }
     const p = R.peers.get(l.name);
     if (!p) continue;
-    if (!p.kachel) { p.kachel = kachel(l.name, false); const v = p.kachel.querySelector('video'); v.srcObject = p.stream; raster.append(p.kachel); }
+    if (!p.kachel) { p.kachel = kachel(l.name, false); const v = p.kachel.querySelector('video'); v.srcObject = p.stream; raster.append(p.kachel); abspielen(R, v); }
     p.kachel.classList.toggle('ohne-video', !l.kamera && !l.bildschirm);
     p.kachel.classList.toggle('teilt', l.bildschirm);
     p.kachel.querySelector('.lr-stumm').hidden = l.mikro;
@@ -411,7 +431,12 @@ function raumSeite(ctx, R) {
   if (!R.laeuft) { R.laeuft = true; abfragen(ctx, R); } else { zeichneLeute(R); zeichneKarte(ctx, R); R.el.timer.dataset.zustand = ''; zeichneTimer(R); }
   // Whiteboard-Inhalt nach Neuaufbau komplett neu laden
   R.strich = 0;
+  R.el.tonKnopf = h('button', { class: 'knopf knopf-haupt lr-ton', hidden: true, onclick: (e) => {
+    for (const v of R.el.raster.querySelectorAll('.lr-kachel:not(.ist-ich) video')) v.play().catch(() => {});
+    e.currentTarget.hidden = true;
+  } }, '🔊 Tippen, um die anderen zu hören');
   return h('div', { class: 'lernraum' },
+    R.el.tonKnopf,
     h('div', { class: 'reihe lr-kopf' }, h('strong', null, R.titel), h('span', { class: 'lr-code' }, `Code ${R.code}`), R.el.timerMini),
     h('div', { class: 'lr-links' }, R.el.raster, R.el.steuer),
     h('div', { class: 'lr-rechts' }, R.el.tabs, wbPanel, R.el.karte, R.el.timer));
