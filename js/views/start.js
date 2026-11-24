@@ -3,6 +3,7 @@ import { stufe } from '../srs.js';
 import { level, rueckblick } from '../erfolge.js';
 import { FAECHER as FAECHER_ALLE } from '../store.js';
 import { kiVerfuegbar, bildVorbereiten, klausurplanErkennen } from '../ai.js';
+import { uebersicht as notenUebersicht, empfehlungen as notenTipps, zahl as notenZahl } from '../noten.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { lernenStarten } from './lernen.js';
@@ -215,6 +216,16 @@ export function start(ctx) {
 
     rueckblickHinweis(ctx),
     termineBereich(ctx),
+    (() => {
+      const { schnitt } = notenUebersicht();
+      const tipp = notenTipps()[0];
+      return h('a', { class: 'noten-karte', href: '#noten' },
+        h('span', { class: 'noten-karte-icon', 'aria-hidden': 'true' }, icon('zeugnis', 24)),
+        h('span', { class: 'noten-karte-text' },
+          h('strong', null, schnitt == null ? 'Noten eintragen' : `Notenschnitt ${notenZahl(schnitt)}`),
+          h('small', null, tipp ? tipp.text : 'Mündlich und schriftlich – mit Schnitt und Lernempfehlungen.')),
+        icon('zurueck', 18));
+    })(),
 
     !leer && h('section', null,
       h('div', { class: 'abschnitt-kopf' },

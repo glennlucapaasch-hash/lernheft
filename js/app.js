@@ -16,6 +16,7 @@ import { notizen } from './views/notizen.js';
 import { spiele } from './views/spiele.js';
 import { themen } from './views/themen.js';
 import { erfolge } from './views/erfolge.js';
+import { noten } from './views/noten.js';
 import { neueAbzeichen } from './erfolge.js';
 
 const BEREICHE = [
@@ -26,6 +27,7 @@ const BEREICHE = [
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
   { id: 'themen', name: 'Themen', icon: 'buch', view: themen, neben: true },
+  { id: 'noten', name: 'Noten', icon: 'zeugnis', view: noten, neben: true },
   { id: 'erfolge', name: 'Erfolge', icon: 'pokal', view: erfolge, neben: true },
   { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, neben: true },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },

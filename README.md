@@ -15,6 +15,8 @@ Eine Lern-App für die Schule, die im Browser läuft – auf Handy, Tablet und P
 - **Duell:** live gegeneinander mit Code, **Level & Abzeichen**, **Wochenrückblick**.
 - **Mündlich abfragen:** Antwort ins Mikrofon sprechen.
 - **Vokabelspiele:** Wortregen, Buchstabensalat, Galgenmännchen.
+- **Noten:** mündlich und schriftlich eintragen (Standard 60/40, pro Fach änderbar, auch 0–15 Punkte), Schnitt pro Fach und gesamt, Lernempfehlungen.
+- **Klausurplan scannen:** Termine automatisch übernehmen.
 - **Statistik:** Lernserie, Tagesziel, Abfragen der letzten 14 Tage, Lernstand und Notenverlauf.
 - Hell („Heft“) oder dunkel („Tafel“), offline nutzbar, als App auf den Startbildschirm legbar.
 

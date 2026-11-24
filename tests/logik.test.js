@@ -159,3 +159,22 @@ test('Probeklausur ohne KI', () => {
   assert.deepEqual(a, { punkte: 3, max: 4, prozent: 75, note: 3 });
   assert.ok(en.id);
 });
+
+test('Noten: Lesen, Gewichtung 60/40, Schnitt', async () => {
+  const n = await import('../js/noten.js');
+  store.init(speicher());
+  assert.equal(n.noteLesen('2-'), 2.3);
+  assert.equal(n.noteLesen('2+'), 1.7);
+  assert.equal(n.noteLesen('2,5'), 2.5);
+  assert.equal(n.noteLesen('7'), null);
+  const s = store.getState();
+  s.noten.push({ id: 'a', fach: 'englisch', art: 'muendlich', wert: 2, datum: '2026-10-01' });
+  s.noten.push({ id: 'b', fach: 'englisch', art: 'schriftlich', wert: 4, datum: '2026-10-02' });
+  s.noten.push({ id: 'c', fach: 'mathe', art: 'schriftlich', wert: 2, datum: '2026-10-02' });
+  const e = n.fachStand('englisch');
+  assert.equal(Math.round(e.gesamt * 100) / 100, 2.8); // 2·0,6 + 4·0,4
+  const u = n.uebersicht();
+  assert.equal(u.staende[0].fach, 'englisch'); // schlechtestes zuerst
+  assert.equal(Math.round(u.schnitt * 100) / 100, 2.4);
+  assert.ok(n.empfehlungen().some((t) => t.fach === 'englisch' && t.aktion === 'klausur'));
+});

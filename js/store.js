@@ -40,6 +40,8 @@ function leer() {
     termine: [],
     spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0 },
     abzeichen: {},
+    noten: [],
+    notenEinst: { system: 'noten', muendlich: 60, faecher: {} },
   };
 }
 
@@ -75,6 +77,8 @@ function uebernehmen(daten) {
     termine: Array.isArray(d.termine) ? d.termine.filter((t) => t && t.id && t.datum) : [],
     spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0, ...(d.spiele || {}) },
     abzeichen: d.abzeichen && typeof d.abzeichen === 'object' ? d.abzeichen : {},
+    noten: Array.isArray(d.noten) ? d.noten.filter((n) => n && n.id && Number.isFinite(n.wert)) : [],
+    notenEinst: { system: 'noten', muendlich: 60, faecher: {}, ...(d.notenEinst || {}) },
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
     chat: Array.isArray(d.chat) ? d.chat.filter((m) => m && typeof m.text === 'string').slice(-40) : [],
   };

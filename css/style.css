@@ -998,3 +998,36 @@ h1.handschrift::after { content: ""; position: absolute; left: 0; right: 0; bott
 .abschnitt-kopf { flex-wrap: wrap; }
 .schnell { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 .schnell-knopf span { overflow-wrap: anywhere; }
+
+/* ======================= Noten ======================= */
+.noten-schnitt { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+.noten-schnitt > * + * { margin-top: 0; }
+.noten-schnitt small { font-weight: 700; color: var(--grau); }
+.noten-gross { font-size: 2.6rem; line-height: 1.3; color: var(--koenigsblau); font-weight: 700; }
+.stapel-kopf .noten-gross { font-size: 2rem; color: #2440b3; }
+.noten-faecher { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: .8rem; }
+.noten-fach { --kf: var(--k-weiss); width: 100%; display: grid; gap: .3rem; justify-items: start; text-align: left; padding: .9rem 1rem; border: 2px solid #1b2a5c; border-radius: 14px; background: var(--kf); color: #1b2a5c; box-shadow: 3px 3px 0 rgba(27,42,92,.25); animation: hinlegen .45s backwards; transition: transform .2s; }
+.noten-fach:hover { transform: translateY(-3px) rotate(-1deg); }
+.noten-fach small { opacity: .8; font-size: .82rem; }
+.noten-chip { display: inline-grid; place-items: center; min-width: 2.6rem; padding: .15em .5em; border-radius: 8px; font-weight: 700; font-variant-numeric: tabular-nums; border: 1.5px solid currentColor; background: #fff; }
+.noten-chip.gross { font-size: 1.5rem; min-width: 4rem; }
+.note-gut { color: #17784a; } .note-mittel { color: #b06000; } .note-schwach { color: #c4273c; }
+.noten-spalten { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); }
+.noten-liste { display: grid; gap: .2rem; }
+.noten-zeile { width: 100%; display: grid; grid-template-columns: auto 1fr auto; gap: .7rem; align-items: center; padding: .45rem .3rem; border: 0; border-radius: 8px; background: transparent; color: var(--tinte); text-align: left; }
+.noten-zeile:hover { background: var(--wahl); }
+.noten-zeile small { color: var(--grau); }
+.noten-titel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tipps { display: grid; gap: .5rem; }
+.tipp { display: flex; gap: .8rem; align-items: center; padding: .7rem .9rem; background: var(--blatt); border: 1px solid var(--linie); border-left: 5px solid var(--marker); border-radius: 8px; animation: hinlegen .4s backwards; flex-wrap: wrap; }
+.tipp p { flex: 1 1 12rem; }
+.gewicht-regler { display: grid; gap: .3rem; }
+.gewicht-regler input { accent-color: var(--koenigsblau); width: 100%; }
+.gewicht-faecher { display: grid; gap: .4rem; }
+.gewicht-faecher label { display: grid; grid-template-columns: 1fr 6rem; gap: .6rem; align-items: center; }
+.noten-karte { display: flex; align-items: center; gap: .8rem; padding: .8rem 1rem; background: var(--blatt); border: 1.5px solid var(--tinte); border-radius: 12px; color: var(--tinte); text-decoration: none; box-shadow: 3px 3px 0 var(--schatten); transition: transform .15s; }
+.noten-karte:hover { transform: translate(-1px, -2px); }
+.noten-karte > .icon:last-child { transform: rotate(180deg); color: var(--grau); flex: none; }
+.noten-karte-icon { width: 2.6rem; height: 2.6rem; border-radius: 10px; display: grid; place-items: center; background: var(--k-gelb); color: #1b2a5c; flex: none; }
+.noten-karte-text { flex: 1; display: grid; min-width: 0; }
+.noten-karte-text small { color: var(--grau); }
