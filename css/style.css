@@ -1435,3 +1435,7 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
 .admin-stufen .stufe-neu { background: var(--stufe-neu); } .admin-stufen .stufe-lernen { background: var(--stufe-lernen); }
 .admin-stufen .stufe-gefestigt { background: var(--stufe-gefestigt); } .admin-stufen .stufe-sicher { background: var(--stufe-sicher); }
 .admin-liste { display: grid; gap: .3rem; padding-left: 1.2rem; list-style: disc; }
+.lr-abstimmung { display: flex; flex-wrap: wrap; gap: .35rem; }
+.lr-chip { padding: .25rem .6rem; border-radius: 999px; background: var(--wahl); color: var(--grau); font-size: .85rem; font-weight: 600; }
+.lr-chip.ist-fertig { background: color-mix(in srgb, var(--gruen) 20%, var(--blatt)); color: var(--tinte); animation: livePop .35s; }
+.lr-weiter { font-weight: 700; color: var(--gruen); animation: livePuls 1s infinite; }

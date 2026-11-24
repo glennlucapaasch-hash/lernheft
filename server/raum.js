@@ -83,14 +83,31 @@ export function karte(code, name, d) {
   if (d.neu) {
     const karten = (Array.isArray(d.karten) ? d.karten : []).slice(0, 60).map((c) => ({ front: String(c.front || '').slice(0, 300), back: String(c.back || '').slice(0, 300) })).filter((c) => c.front && c.back);
     if (!karten.length) throw fehler(400, 'Keine Karten.');
-    r.karte = { titel: String(d.titel || '').slice(0, 60), von: name, karten, i: 0, aufgedeckt: false, stimmen: {} };
+    r.karte = { titel: String(d.titel || '').slice(0, 60), von: name, karten, i: 0, aufgedeckt: false, stimmen: {}, bereit: {}, weiterUm: null, ergebnis: { gewusst: 0, nicht: 0 } };
   } else if (k) {
+    if (d.bereit && !k.aufgedeckt) k.bereit[name] = true;
     if (d.aufdecken) k.aufgedeckt = true;
-    if (d.stimme && ['gewusst', 'nicht'].includes(d.stimme)) k.stimmen[name] = d.stimme;
-    if (d.weiter) { k.i = (k.i + 1) % k.karten.length; k.aufgedeckt = false; k.stimmen = {}; }
+    if (d.stimme && ['gewusst', 'nicht'].includes(d.stimme) && k.aufgedeckt) k.stimmen[name] = d.stimme;
+    if (d.weiter) naechsteKarte(k);
+    abstimmungPruefen(r);
   }
   r.ereignis += 1;
   return { ok: true };
+}
+
+function naechsteKarte(k) {
+  for (const v of Object.values(k.stimmen)) k.ergebnis[v] += 1;
+  k.i = (k.i + 1) % k.karten.length; k.aufgedeckt = false; k.stimmen = {}; k.bereit = {}; k.weiterUm = null;
+}
+
+// Abstimmung: Sind alle bereit, wird aufgedeckt. Haben alle abgestimmt, kommt nach kurzer Pause die nächste Karte.
+function abstimmungPruefen(r) {
+  const k = r.karte;
+  if (!k) return;
+  const alle = [...r.leute.keys()];
+  if (!k.aufgedeckt && alle.length && alle.every((n) => k.bereit[n])) { k.aufgedeckt = true; r.ereignis += 1; }
+  if (k.aufgedeckt && !k.weiterUm && alle.length && alle.every((n) => k.stimmen[n])) { k.weiterUm = Date.now() + 2500; r.ereignis += 1; }
+  if (k.weiterUm && Date.now() >= k.weiterUm) { naechsteKarte(k); r.ereignis += 1; }
 }
 
 export function timer(code, name, d) {
@@ -107,6 +124,7 @@ export function timer(code, name, d) {
 export function stand(code, name, sigSeit, strichSeit) {
   const r = raum(code, name);
   r.leute.get(name).gesehen = Date.now();
+  abstimmungPruefen(r);
   const neuGeloescht = r.geloescht && r.geloescht > strichSeit;
   return {
     code: r.code, titel: r.titel, host: r.host, ereignis: r.ereignis,
@@ -115,7 +133,7 @@ export function stand(code, name, sigSeit, strichSeit) {
     loeschen: Boolean(neuGeloescht),
     striche: r.striche.filter((s) => s.nr > strichSeit && s.von !== name),
     strichNr: r.strichNr,
-    karte: r.karte && { titel: r.karte.titel, von: r.karte.von, i: r.karte.i, n: r.karte.karten.length, front: r.karte.karten[r.karte.i].front, back: r.karte.aufgedeckt ? r.karte.karten[r.karte.i].back : null, stimmen: r.karte.stimmen },
+    karte: r.karte && { titel: r.karte.titel, von: r.karte.von, i: r.karte.i, n: r.karte.karten.length, front: r.karte.karten[r.karte.i].front, back: r.karte.aufgedeckt ? r.karte.karten[r.karte.i].back : null, stimmen: r.karte.stimmen, bereit: Object.keys(r.karte.bereit), weiterIn: r.karte.weiterUm ? 1 : null, ergebnis: r.karte.ergebnis },
     timer: r.timer && { rest: Math.max(0, r.timer.ende - Date.now()), minuten: r.timer.minuten, pause: r.timer.pause, von: r.timer.von },
   };
 }

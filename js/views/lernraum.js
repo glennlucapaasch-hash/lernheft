@@ -337,20 +337,38 @@ function zeichneKarte(ctx, R) {
     return;
   }
   const ich = k.stimmen[R.ich];
-  const gewusst = Object.entries(k.stimmen).filter(([, v]) => v === 'gewusst').map(([n]) => n);
-  const nicht = Object.entries(k.stimmen).filter(([, v]) => v === 'nicht').map(([n]) => n);
+  const leute = R.stand.leute.map((l) => l.name);
+  const senden = (body) => api(`/api/raum/${R.code}/karte`, body).catch(() => {});
+  // Wer ist schon so weit? Kleine Namens-Chips mit Haken
+  const chips = (fertig, symbol) => h('div', { class: 'lr-abstimmung' }, leute.map((n) => h('span', { class: `lr-chip ${fertig(n) ? 'ist-fertig' : ''}` }, fertig(n) ? symbol(n) : '…', ' ', n === R.ich ? 'du' : n)));
+  let unten;
+  if (!k.back) {
+    const binBereit = k.bereit.includes(R.ich);
+    unten = [
+      h('button', { class: `knopf knopf-gross ${binBereit ? '' : 'knopf-haupt'}`, disabled: binBereit, onclick: () => senden({ bereit: true }) }, binBereit ? '✋ Du bist bereit' : '✋ Ich hab meine Antwort'),
+      h('p', { class: 'hinweis' }, `Aufgedeckt wird, wenn alle bereit sind (${k.bereit.length}/${leute.length}).`),
+      chips((n) => k.bereit.includes(n), () => '✋'),
+      k.von === R.ich && h('button', { class: 'knopf knopf-leise knopf-mini', onclick: () => senden({ aufdecken: true }) }, 'Sofort aufdecken'),
+    ];
+  } else {
+    const gewusst = Object.values(k.stimmen).filter((v) => v === 'gewusst').length;
+    const nicht = Object.values(k.stimmen).filter((v) => v === 'nicht').length;
+    unten = [
+      h('div', { class: 'reihe lr-stimmen' },
+        h('button', { class: `knopf knopf-gross ${ich === 'gewusst' ? 'knopf-haupt' : ''}`, onclick: () => senden({ stimme: 'gewusst' }) }, `✅ Gewusst (${gewusst})`),
+        h('button', { class: `knopf knopf-gross ${ich === 'nicht' ? 'knopf-haupt' : ''}`, onclick: () => senden({ stimme: 'nicht' }) }, `❌ Nicht gewusst (${nicht})`)),
+      k.weiterIn !== null ? h('p', { class: 'lr-weiter', role: 'status' }, 'Alle haben abgestimmt – gleich kommt die nächste Karte …')
+        : h('p', { class: 'hinweis' }, `Die nächste Karte kommt, wenn alle abgestimmt haben (${gewusst + nicht}/${leute.length}).`),
+      chips((n) => k.stimmen[n], (n) => (k.stimmen[n] === 'gewusst' ? '✅' : '❌')),
+      k.von === R.ich && k.weiterIn === null && h('button', { class: 'knopf knopf-leise knopf-mini', onclick: () => senden({ weiter: true }) }, 'Nicht warten – nächste Karte'),
+    ];
+  }
   box.replaceChildren(h('div', { class: 'lr-karte' },
-    h('div', { class: 'reihe lr-karte-kopf' }, h('strong', null, k.titel), h('span', { class: 'hinweis' }, `Karte ${k.i + 1} von ${k.n} · von ${k.von}`),
-      h('button', { class: 'knopf knopf-leise knopf-mini', onclick: () => api(`/api/raum/${R.code}/karte`, { ende: true }).catch(() => {}) }, 'Beenden')),
+    h('div', { class: 'reihe lr-karte-kopf' }, h('strong', null, k.titel), h('span', { class: 'hinweis' }, `Karte ${k.i + 1} von ${k.n} · bisher ✅ ${k.ergebnis.gewusst} ❌ ${k.ergebnis.nicht}`),
+      h('button', { class: 'knopf knopf-leise knopf-mini', onclick: () => senden({ ende: true }) }, 'Beenden')),
     h('div', { class: `karteikarte gross farbe-gelb lr-karteikarte ${k.back ? 'ist-offen' : ''}` },
       h('div', { class: 'karte-seite' }, h('p', { class: 'karte-text' }, k.front), k.back && h('p', { class: 'lr-rueckseite' }, k.back))),
-    !k.back
-      ? h('button', { class: 'knopf knopf-haupt knopf-gross', onclick: () => api(`/api/raum/${R.code}/karte`, { aufdecken: true }).catch(() => {}) }, 'Für alle aufdecken')
-      : h('div', { class: 'reihe lr-stimmen' },
-        h('button', { class: `knopf ${ich === 'gewusst' ? 'knopf-haupt' : ''}`, onclick: () => api(`/api/raum/${R.code}/karte`, { stimme: 'gewusst' }).catch(() => {}) }, `✅ Gewusst (${gewusst.length})`),
-        h('button', { class: `knopf ${ich === 'nicht' ? 'knopf-haupt' : ''}`, onclick: () => api(`/api/raum/${R.code}/karte`, { stimme: 'nicht' }).catch(() => {}) }, `❌ Nicht gewusst (${nicht.length})`),
-        h('button', { class: 'knopf', onclick: () => api(`/api/raum/${R.code}/karte`, { weiter: true }).catch(() => {}) }, 'Nächste Karte')),
-    (gewusst.length + nicht.length) > 0 && h('p', { class: 'hinweis' }, [gewusst.length && `Gewusst: ${gewusst.join(', ')}`, nicht.length && `Nicht gewusst: ${nicht.join(', ')}`].filter(Boolean).join(' · '))));
+    unten));
 }
 
 // ---------------------------------------------------------------- Timer für alle
