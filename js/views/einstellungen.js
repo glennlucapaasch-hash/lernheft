@@ -57,10 +57,10 @@ function einspielenDialog(ctx) {
 
 function passwortDialog() {
   const alt = h('input', { type: 'password', autocomplete: 'current-password' });
-  const neu = h('input', { type: 'password', autocomplete: 'new-password', minlength: '8' });
+  const neu = h('input', { type: 'password', autocomplete: 'new-password', minlength: '10' });
   const zu = modal('Passwort ändern', h('form', { onsubmit: async (e) => {
     e.preventDefault();
-    if (neu.value.length < 8) { toast('Das neue Passwort braucht mindestens 8 Zeichen.', 'fehler'); neu.focus(); return; }
+    if (neu.value.length < 10) { toast('Das neue Passwort braucht mindestens 10 Zeichen.', 'fehler'); neu.focus(); return; }
     const r = await fetch('/api/passwort', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-lernheft': '1' }, body: JSON.stringify({ alt: alt.value, neu: neu.value }) });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { toast(d?.error?.message || 'Das hat nicht geklappt.', 'fehler'); return; }
@@ -69,7 +69,7 @@ function passwortDialog() {
     setTimeout(() => location.reload(), 1500);
   } },
     feld('Bisheriges Passwort', alt),
-    feld('Neues Passwort', neu, 'Mindestens 8 Zeichen. Gut merkbar und trotzdem sicher: drei Wörter mit Bindestrich und eine Zahl.'),
+    feld('Neues Passwort', neu, 'Mindestens 10 Zeichen. Gut merkbar und trotzdem sicher: drei Wörter mit Bindestrich und eine Zahl.'),
     h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Passwort ändern'))));
 }
 
@@ -129,7 +129,22 @@ function kontoBereich(ctx) {
     h('div', { class: 'reihe' },
       h('button', { class: 'knopf', onclick: passwortDialog }, 'Passwort ändern'),
       k.admin && h('a', { class: 'knopf', href: '#verwaltung' }, 'Zur Verwaltung'),
-      h('button', { class: 'knopf knopf-gefahr-leise', onclick: () => ctx.abmelden() }, 'Abmelden')));
+      h('button', { class: 'knopf knopf-gefahr-leise', onclick: () => ctx.abmelden() }, 'Abmelden')),
+    h('p', { class: 'hinweis' }, h('a', { href: '#datenschutz' }, 'Datenschutz: Was gespeichert wird')),
+    !k.admin && h('details', { class: 'konto-loeschen' },
+      h('summary', null, 'Konto löschen'),
+      h('p', null, 'Dein Zugang und alle deine Karten, Notizen, Chats, Klausuren und geteilten Inhalte werden endgültig gelöscht. Lade vorher eine Sicherung herunter, wenn du etwas behalten willst.'),
+      h('form', { class: 'reihe', onsubmit: async (e) => {
+        e.preventDefault();
+        const pw = e.target.querySelector('input').value;
+        const r = await fetch('/api/ich', { method: 'DELETE', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-lernheft': '1' }, body: JSON.stringify({ passwort: pw }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) { toast(d?.error?.message || 'Das hat nicht geklappt.', 'fehler'); return; }
+        try { localStorage.clear(); sessionStorage.clear(); } catch { /* egal */ }
+        location.replace('/');
+      } },
+        h('input', { type: 'password', autocomplete: 'current-password', placeholder: 'Passwort zur Bestätigung', 'aria-label': 'Passwort zur Bestätigung', required: true }),
+        h('button', { class: 'knopf knopf-gefahr', type: 'submit' }, 'Endgültig löschen'))));
 }
 
 export function einstellungen(ctx) {

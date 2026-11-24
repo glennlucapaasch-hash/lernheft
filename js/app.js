@@ -2,6 +2,7 @@ import { h, icon, toast, nachfragen } from './dom.js';
 import * as store from './store.js';
 import { konfigurieren, serverModus } from './ai.js';
 import { anmeldeSeite } from './views/anmelden.js';
+import { datenschutz, datenschutzSeite } from './views/datenschutz.js';
 import { verwaltung } from './views/verwaltung.js';
 import { start } from './views/start.js';
 import { karten } from './views/karten.js';
@@ -29,6 +30,7 @@ const BEREICHE = [
   { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, neben: true },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
   { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, neben: true, nurAdmin: true },
+  { id: 'datenschutz', name: 'Datenschutz', icon: 'schild', view: datenschutz, versteckt: true },
   { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, neben: true },
   { id: 'einstellungen', name: 'Einstellungen', icon: 'einstellungen', view: einstellungen, neben: true },
 ];
@@ -51,7 +53,16 @@ async function kontoPruefen() {
 const konto = await kontoPruefen();
 if (konto === 'abgemeldet') {
   document.getElementById('nav').hidden = true;
-  document.getElementById('inhalt').replaceChildren(anmeldeSeite(() => location.reload()));
+  const zeigeLogin = () => {
+    const main = document.getElementById('inhalt');
+    if (location.hash === '#datenschutz') {
+      const seite = datenschutzSeite(zeigeLogin);
+      seite.prepend(h('a', { class: 'knopf knopf-leise zurueck', href: '#' }, icon('zurueck', 18), 'Zur Anmeldung'));
+      main.replaceChildren(seite);
+    } else main.replaceChildren(anmeldeSeite(() => location.reload()));
+  };
+  addEventListener('hashchange', zeigeLogin);
+  zeigeLogin();
   document.documentElement.dataset.theme = matchMedia?.('(prefers-color-scheme: dark)').matches ? 'tafel' : 'heft';
   throw new Error('Anmeldung nötig'); // Rest der App erst nach dem Anmelden laden
 }
@@ -129,7 +140,10 @@ const ctx = {
     store.jetztSpeichern();
     await new Promise((r) => setTimeout(r, 300));
     try { await api('/api/abmelden', { method: 'POST' }); } catch { /* egal */ }
-    location.reload();
+    // Auf gemeinsam genutzten Geräten nichts zurücklassen
+    try { localStorage.removeItem('lernheft.v1'); sessionStorage.clear(); } catch { /* egal */ }
+    try { const n = await caches.keys(); await Promise.all(n.map((k) => caches.delete(k))); } catch { /* egal */ }
+    location.replace('/');
   },
 };
 
@@ -165,7 +179,7 @@ function zeichnen() {
 function navZeichnen(aktivId) {
   nav.replaceChildren(
     h('a', { class: 'nav-marke', href: '#start', 'aria-label': 'Lernheft von Glenn, zum Start' }, 'Lernheft', h('small', null, 'von Glenn')),
-    h('ul', null, BEREICHE.filter((b) => !b.nurAdmin || konto?.admin).map((b) =>
+    h('ul', null, BEREICHE.filter((b) => (!b.nurAdmin || konto?.admin) && !b.versteckt).map((b) =>
       h('li', { class: b.neben ? 'nav-neben' : '' },
         h('a', { href: `#${b.id}`, 'aria-current': b.id === aktivId ? 'page' : null, onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
           b.id === 'scannen' ? h('span', { class: 'nav-scan' }, icon(b.icon, 26)) : icon(b.icon), h('span', null, b.name))))),

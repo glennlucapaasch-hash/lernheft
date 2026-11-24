@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as db from './db.js';
 import * as extra from './extra.js';
+import * as schriften from './schriften.js';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 3000);
@@ -60,8 +61,10 @@ function cookies(req) {
   return aus;
 }
 
+// __Host-: Das Cookie gilt nur für genau diese Domain, nur über HTTPS und lässt sich nicht von Subdomains überschreiben.
+const KEKS = SICHER ? '__Host-lh_sitzung' : 'lh_sitzung';
 function sitzungsCookie(token, maxAlter) {
-  return `lh_sitzung=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAlter}${SICHER ? '; Secure' : ''}`;
+  return `${KEKS}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAlter}${SICHER ? '; Secure' : ''}`;
 }
 
 const ip = (req) => String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -141,7 +144,8 @@ async function api(req, res, pfad) {
     return senden(res, 200, { name: konto.name, admin: konto.admin }, { 'set-cookie': sitzungsCookie(token, 60 * 60 * 24 * 60) });
   }
 
-  const token = cookies(req).lh_sitzung;
+  if (pfad === '/api/kontakt' && methode === 'GET') { const e = db.einstellungen(); return senden(res, 200, { name: e.kontaktName || '', mail: e.kontaktMail || '', ort: e.kontaktOrt || '' }); }
+  const token = cookies(req)[KEKS];
   const konto = token && db.sitzung(token);
   if (pfad === '/api/ich' && methode === 'GET') {
     return konto ? senden(res, 200, { name: konto.name, admin: konto.admin, mussWechseln: konto.mussWechseln }) : fehler(res, 401, 'Nicht angemeldet.');
@@ -152,10 +156,19 @@ async function api(req, res, pfad) {
     db.sitzungLoeschen(token);
     return senden(res, 200, { ok: true }, { 'set-cookie': sitzungsCookie('', 0) });
   }
+  if (pfad === '/api/ich' && methode === 'DELETE') {
+    if (konto.admin) return fehler(res, 400, 'Der Admin kann sein Konto nicht selbst löschen.');
+    const { passwort } = await koerper(req, 10000);
+    if (!db.pruefen(konto.name, passwort)) return fehler(res, 400, 'Das Passwort stimmt nicht.');
+    db.kontoLoeschen(konto.name);
+    extra.allesVon(konto.name);
+    return senden(res, 200, { ok: true }, { 'set-cookie': sitzungsCookie('', 0) });
+  }
   if (pfad === '/api/passwort' && methode === 'POST') {
     const { alt, neu } = await koerper(req, 10000);
     if (!db.pruefen(konto.name, alt)) return fehler(res, 400, 'Das bisherige Passwort stimmt nicht.');
-    if (String(neu || '').length < 8) return fehler(res, 400, 'Das neue Passwort braucht mindestens 8 Zeichen.');
+    if (String(neu || '').length < 10) return fehler(res, 400, 'Das neue Passwort braucht mindestens 10 Zeichen.');
+    if (String(neu).toLowerCase().includes(konto.name)) return fehler(res, 400, 'Das Passwort darf deinen Benutzernamen nicht enthalten.');
     db.passwortSetzen(konto.name, neu, false);
     return senden(res, 200, { ok: true });
   }
@@ -197,13 +210,13 @@ async function api(req, res, pfad) {
     if (pfad === '/api/verwaltung' && methode === 'GET') {
       const e = db.einstellungen();
       return senden(res, 200, {
-        einstellungen: { model: e.model, tageslimit: e.tageslimit, schluessel: e.apiKey ? `${e.apiKey.slice(0, 10)}…${e.apiKey.slice(-4)}` : '' },
+        einstellungen: { model: e.model, tageslimit: e.tageslimit, kontaktName: e.kontaktName || '', kontaktMail: e.kontaktMail || '', kontaktOrt: e.kontaktOrt || '', schluessel: e.apiKey ? `${e.apiKey.slice(0, 10)}…${e.apiKey.slice(-4)}` : '' },
         konten: db.kontenListe(),
       });
     }
     if (pfad === '/api/verwaltung/einstellungen' && methode === 'PUT') {
-      const { apiKey, model, tageslimit } = await koerper(req, 10000);
-      db.einstellungenSetzen({ apiKey, model, tageslimit });
+      const { apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt } = await koerper(req, 10000);
+      db.einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt });
       return senden(res, 200, { ok: true });
     }
     if (pfad === '/api/verwaltung/konten' && methode === 'POST') {
@@ -218,7 +231,7 @@ async function api(req, res, pfad) {
     }
     if (m && !m[2] && methode === 'DELETE') {
       if (m[1] === konto.name) return fehler(res, 400, 'Du kannst dich nicht selbst löschen.');
-      try { db.kontoLoeschen(m[1]); return senden(res, 200, { ok: true }); }
+      try { db.kontoLoeschen(m[1]); extra.allesVon(m[1]); return senden(res, 200, { ok: true }); }
       catch (e) { return fehler(res, 404, e.message); }
     }
     if (pfad === '/api/verwaltung/sicherung' && methode === 'GET') {
@@ -245,8 +258,50 @@ async function api(req, res, pfad) {
   return fehler(res, 404, 'Unbekannte Adresse.');
 }
 
+// Sicherheits-Header für jede Antwort
+const SICHERHEIT = {
+  'content-security-policy': [
+    "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:",
+    "font-src 'self'", "connect-src 'self'", "media-src 'self' blob:", "worker-src 'self'", "manifest-src 'self'",
+    "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'none'",
+  ].join('; '),
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'same-origin',
+  'x-frame-options': 'DENY',
+  'permissions-policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()',
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-resource-policy': 'same-origin',
+  ...(SICHER ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),
+};
+
+// Anfrage-Bremse: höchstens 240 API-Anfragen pro Minute und Adresse
+const anfragen = new Map();
+function zuViele(adresse) {
+  const jetzt = Date.now();
+  const e = anfragen.get(adresse);
+  if (!e || jetzt - e.seit > 60e3) { anfragen.set(adresse, { seit: jetzt, n: 1 }); return false; }
+  e.n += 1;
+  return e.n > 240;
+}
+setInterval(() => { const g = Date.now() - 120e3; for (const [k, v] of anfragen) if (v.seit < g) anfragen.delete(k); }, 300e3).unref();
+
 const server = http.createServer(async (req, res) => {
+  for (const [k, v] of Object.entries(SICHERHEIT)) res.setHeader(k, v);
   try {
+    const roh = new URL(req.url, 'http://x').pathname;
+    if (roh === '/schriften/schriften.css') {
+      res.writeHead(200, { 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=86400' });
+      res.end(await schriften.css());
+      return;
+    }
+    if (roh.startsWith('/schriften/')) {
+      const f = schriften.datei(roh.slice(11));
+      if (!f) { res.writeHead(404); res.end(); return; }
+      res.writeHead(200, { 'content-type': 'font/woff2', 'cache-control': 'public, max-age=31536000, immutable' });
+      res.end(f);
+      return;
+    }
+    if (roh.startsWith('/api/') && zuViele(ip(req))) { fehler(res, 429, 'Zu viele Anfragen. Warte eine Minute.'); return; }
     const pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (pfad.startsWith('/api/')) await api(req, res, pfad);
     else if (req.method === 'GET' || req.method === 'HEAD') await datei(req, res, pfad);
@@ -259,6 +314,7 @@ const server = http.createServer(async (req, res) => {
 
 db.oeffnen(process.env.DATEN || path.join(WURZEL, 'daten'));
 extra.oeffnen(process.env.DATEN || path.join(WURZEL, 'daten'));
+schriften.oeffnen(process.env.DATEN || path.join(WURZEL, 'daten'));
 const jedeMinute = () => { extra.erinnerungenPruefen().catch((e) => console.error('Erinnerungen:', e.message)); };
 const jedeStunde = () => { try { extra.naechtlicheSicherung(); } catch (e) { console.error('Sicherung:', e.message); } };
 setInterval(jedeMinute, 60e3).unref();

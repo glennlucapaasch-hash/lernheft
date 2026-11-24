@@ -54,7 +54,7 @@ export function geteiltAnlegen(von, { name, fach, karten, an, typ, notiz }) {
   const liste = lesen('geteilt.json', []);
   const eintrag = {
     id: crypto.randomUUID(), typ: 'stapel', von, an: empfaenger, name: String(name).slice(0, 60), fach: String(fach || 'sonstiges').slice(0, 20), datum: Date.now(),
-    karten: karten.slice(0, 500).map((k) => ({ front: String(k.front || '').slice(0, 600), back: String(k.back || '').slice(0, 1500), note: String(k.note || '').slice(0, 400), bildVorn: k.bildVorn || undefined, bildHinten: k.bildHinten || undefined })),
+    karten: karten.slice(0, 500).map((k) => ({ front: String(k.front || '').slice(0, 600), back: String(k.back || '').slice(0, 1500), note: String(k.note || '').slice(0, 400), bildVorn: db.bildOk(k.bildVorn) ? k.bildVorn : undefined, bildHinten: db.bildOk(k.bildHinten) ? k.bildHinten : undefined })),
   };
   liste.unshift(eintrag);
   schreiben('geteilt.json', liste.slice(0, 200));
@@ -284,4 +284,11 @@ export function duellStand(code, name) {
     meine: ich?.antworten[r.i] || null,
     spieler: [...r.spieler.entries()].map(([n, s]) => ({ name: n, punkte: s.punkte, fertig: r.i in s.antworten, plus: r.phase === 'aufloesung' ? (s.antworten[r.i]?.punkte || 0) : 0 })).sort((a, b) => b.punkte - a.punkte),
   };
+}
+
+// Beim Löschen eines Kontos: geteilte Inhalte und Erinnerungen dieser Person entfernen
+export function allesVon(name) {
+  schreiben('geteilt.json', lesen('geteilt.json', []).filter((g) => g.von !== name).map((g) => (g.an?.length ? { ...g, an: g.an.filter((n) => n !== name) } : g)));
+  const abos = lesen('push.json', {});
+  if (abos[name]) { delete abos[name]; schreiben('push.json', abos); }
 }

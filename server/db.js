@@ -168,8 +168,11 @@ export function fehlversuch(ip) {
 
 // ---------- Einstellungen ----------
 export const einstellungen = () => { aktuell(); return { ...einst }; };
-export function einstellungenSetzen({ apiKey, model, tageslimit }) {
+export function einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt }) {
   aktuell();
+  if (typeof kontaktName === 'string') einst.kontaktName = kontaktName.trim().slice(0, 100);
+  if (typeof kontaktMail === 'string') einst.kontaktMail = kontaktMail.trim().slice(0, 120);
+  if (typeof kontaktOrt === 'string') einst.kontaktOrt = kontaktOrt.trim().slice(0, 200);
   if (typeof apiKey === 'string' && apiKey.trim()) einst.apiKey = apiKey.trim();
   if (apiKey === null) einst.apiKey = '';
   if (MODELLE.includes(model)) einst.model = model;
@@ -199,8 +202,13 @@ function kiMonat(name) {
 export function datenLesen(name) {
   return lesen(path.join('nutzer', `${name}.json`), {});
 }
+export const bildOk = (b) => typeof b === 'string' && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b) && b.length < 600000;
 export function datenSchreiben(name, daten) {
   if (!daten || typeof daten !== 'object' || Array.isArray(daten)) throw Object.assign(new Error('Ungültige Daten.'), { status: 400 });
+  for (const c of Array.isArray(daten.cards) ? daten.cards : []) {
+    if (c && c.bildVorn && !bildOk(c.bildVorn)) delete c.bildVorn;
+    if (c && c.bildHinten && !bildOk(c.bildHinten)) delete c.bildHinten;
+  }
   if (daten.settings) daten.settings.apiKey = '';
   schreiben(path.join('nutzer', `${name}.json`), daten);
 }

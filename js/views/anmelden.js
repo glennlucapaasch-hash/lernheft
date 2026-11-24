@@ -39,7 +39,8 @@ export function anmeldeSeite(onErfolg) {
       pw),
     fehler,
     knopf,
-    h('p', { class: 'hinweis' }, 'Zugang vergessen? Frag Glenn nach einem neuen Passwort.'));
+    h('p', { class: 'hinweis' }, 'Zugang vergessen? Frag Glenn nach einem neuen Passwort.'),
+    h('p', { class: 'hinweis' }, 'Mit der Anmeldung setzt die Seite ein technisch notwendiges Cookie. ', h('a', { href: '#datenschutz' }, 'Datenschutz')));
 
   queueMicrotask(() => name.focus());
   return h('div', { class: 'anmelden' }, h('div', { class: 'anmelden-symbol', 'aria-hidden': 'true' }, icon('heft', 40)), form);

@@ -968,3 +968,11 @@ h1.handschrift::after { content: ""; position: absolute; left: 0; right: 0; bott
 .taste-buchstabe { height: 2.9rem; border-radius: 8px; border: 1.5px solid var(--linie-stark); background: var(--blatt); color: var(--tinte); font-size: 1.15rem; font-weight: 700; text-transform: uppercase; }
 .taste-buchstabe.treffer { background: #dbf2df; border-color: #17784a; color: #17784a; opacity: 1; }
 .taste-buchstabe.niete { opacity: .3; text-decoration: line-through; }
+
+/* ======================= Datenschutz ======================= */
+.datenschutz { max-width: 44rem; }
+.ds-abschnitt { background: var(--blatt); border: 1px solid var(--linie); border-radius: 8px; padding: 1rem 1.15rem; display: grid; gap: .6rem; }
+.ds-liste { list-style: disc; padding-left: 1.2rem; display: grid; gap: .45rem; }
+.konto-loeschen summary { color: var(--rotstift); }
+.konto-loeschen > * + * { margin-top: .6rem; }
+.konto-loeschen input { flex: 1 1 12rem; width: auto; }

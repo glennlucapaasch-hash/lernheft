@@ -110,6 +110,22 @@ function kontenBereich(ctx, ich) {
             } }, 'Löschen'))))))));
 }
 
+function kontaktBereich(ctx) {
+  const e = ui.daten.einstellungen;
+  const name = h('input', { type: 'text', value: e.kontaktName, maxlength: '100', autocomplete: 'name' });
+  const mail = h('input', { type: 'email', value: e.kontaktMail, maxlength: '120', autocomplete: 'email' });
+  const ort = h('input', { type: 'text', value: e.kontaktOrt, maxlength: '200', placeholder: 'z. B. Musterstraße 1, 20095 Hamburg' });
+  return h('form', { class: 'blatt', onsubmit: async (ev) => {
+    ev.preventDefault();
+    try { await api('/api/verwaltung/einstellungen', { method: 'PUT', body: { kontaktName: name.value, kontaktMail: mail.value, kontaktOrt: ort.value } }); toast('Gespeichert.'); neuLaden(ctx); }
+    catch (err) { toast(err.message, 'fehler'); }
+  } },
+    h('h2', null, 'Datenschutz: Verantwortlicher'),
+    h('p', null, 'Diese Angaben erscheinen in der Datenschutzerklärung. Wer andere Leute die App nutzen lässt, muss sagen, wer für die Daten verantwortlich ist und wie man ihn erreicht.'),
+    feld('Name', name), feld('E-Mail', mail), feld('Anschrift (freiwillig)', ort),
+    h('div', { class: 'reihe' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Speichern'), h('a', { class: 'knopf', href: '#datenschutz' }, 'Datenschutzerklärung ansehen')));
+}
+
 function sicherungBereich() {
   return h('section', { class: 'blatt' },
     h('h2', null, 'Sicherung'),
@@ -128,5 +144,5 @@ export function verwaltung(ctx) {
     ui.fehler && h('div', { class: 'blatt meldung meldung-fehler', role: 'alert' }, h('p', null, ui.fehler)),
     !ui.daten
       ? h('div', { class: 'blatt warten', role: 'status' }, h('p', null, 'Lade …'))
-      : [kontenBereich(ctx, ich), kiBereich(ctx), sicherungBereich()]);
+      : [kontenBereich(ctx, ich), kiBereich(ctx), kontaktBereich(ctx), sicherungBereich()]);
 }

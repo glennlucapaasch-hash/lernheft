@@ -86,3 +86,21 @@ test('Server: an bestimmte Personen schicken', async () => {
   assert.ok(!(await (await fetch(`${URL_}/api/geteilt`, mit(glenn))).json()).some((g) => g.id === id));
   assert.equal((await fetch(`${URL_}/api/geteilt/${id}`, mit(glenn))).status, 404);
 });
+
+test('Server: Sicherheits-Header, Bilder prüfen, Konto selbst löschen', async () => {
+  const r = await fetch(`${URL_}/`);
+  assert.match(r.headers.get('content-security-policy'), /frame-ancestors 'none'/);
+  assert.equal(r.headers.get('x-frame-options'), 'DENY');
+  execFileSync(process.execPath, ['server/benutzer.js', 'anlegen', 'dora'], { env: { ...process.env, DATEN: daten } });
+  const pw = /\S+\s+(\S+)/.exec(execFileSync(process.execPath, ['server/benutzer.js', 'passwort', 'dora'], { env: { ...process.env, DATEN: daten } }).toString().trim())[1];
+  const dora = keks(await anmelden('dora', pw));
+  await fetch(`${URL_}/api/daten`, mit(dora, { method: 'PUT', body: JSON.stringify({ cards: [{ id: 1, bildVorn: 'https://boese.example/pixel.png' }, { id: 2, bildVorn: 'data:image/png;base64,AAAA' }] }) }));
+  const d = await (await fetch(`${URL_}/api/daten`, mit(dora))).json();
+  assert.equal(d.cards[0].bildVorn, undefined);
+  assert.equal(d.cards[1].bildVorn, 'data:image/png;base64,AAAA');
+  assert.equal((await fetch(`${URL_}/api/ich`, mit(dora, { method: 'DELETE', body: JSON.stringify({ passwort: 'falsch' }) }))).status, 400);
+  assert.equal((await fetch(`${URL_}/api/ich`, mit(dora, { method: 'DELETE', body: JSON.stringify({ passwort: pw }) }))).status, 200);
+  assert.equal((await anmelden('dora', pw)).status, 401);
+  const kontakt = await (await fetch(`${URL_}/api/kontakt`)).json();
+  assert.equal(typeof kontakt.name, 'string');
+});
