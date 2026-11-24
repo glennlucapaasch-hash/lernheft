@@ -31,7 +31,7 @@ export function anmeldeSeite(onErfolg) {
       pw.select();
     }
   } },
-    h('p', { class: 'stapel-fach' }, 'Lernheft'),
+    h('p', { class: 'stapel-fach' }, 'Lernheft – von Glenn'),
     h('h1', { class: 'handschrift anmelden-titel' }, 'Willkommen!'),
     h('div', { class: 'feld' }, h('label', { for: 'login-name' }, 'Benutzername'), name),
     h('div', { class: 'feld' },

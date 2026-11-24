@@ -150,5 +150,6 @@ export function einstellungen(ctx) {
             toast('Alles gelöscht.');
             ctx.go('start');
           }
-        } }, 'Alles löschen'))));
+        } }, 'Alles löschen'))),
+    h('p', { class: 'handschrift macher' }, 'Lernheft – gemacht von Glenn'));
 }

@@ -705,3 +705,5 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 .schalter-zeile { display: flex; gap: .7rem; align-items: flex-start; cursor: pointer; }
 .schalter-zeile input { width: 1.3rem; height: 1.3rem; margin-top: .15rem; accent-color: var(--koenigsblau); flex: none; }
 .schalter-zeile small { display: block; color: var(--grau); }
+.nav a.nav-marke small { display: block; font-family: var(--schrift); font-size: .8rem; color: var(--rotstift); margin-top: -.3rem; transform: rotate(-3deg); transform-origin: left; }
+.macher { text-align: center; color: var(--rotstift); font-size: 1.1rem; line-height: 2; }

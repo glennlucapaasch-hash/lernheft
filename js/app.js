@@ -152,7 +152,7 @@ function zeichnen() {
 
 function navZeichnen(aktivId) {
   nav.replaceChildren(
-    h('a', { class: 'nav-marke', href: '#start', 'aria-label': 'Lernheft, zum Start' }, 'Lernheft'),
+    h('a', { class: 'nav-marke', href: '#start', 'aria-label': 'Lernheft von Glenn, zum Start' }, 'Lernheft', h('small', null, 'von Glenn')),
     h('ul', null, BEREICHE.filter((b) => !b.nurAdmin || konto?.admin).map((b) =>
       h('li', { class: b.neben ? 'nav-neben' : '' },
         h('a', { href: `#${b.id}`, 'aria-current': b.id === aktivId ? 'page' : null, onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
