@@ -172,7 +172,7 @@ const SPIELE = [
   { id: 'salat', name: 'Buchstabensalat', icon: '🔤', text: 'Durcheinandergewürfelte Buchstaben ordnen', farbe: 'gelb', view: (ctx) => buchstabensalat(ctx, ui.deckId || 'alle'), stapel: true },
   { id: 'galgen', name: 'Galgenmännchen', icon: '🪢', text: 'Das Wort Buchstabe für Buchstabe erraten', farbe: 'rosa', view: (ctx) => galgenmaennchen(ctx, ui.deckId || 'alle'), stapel: true },
   { id: 'blitz', name: 'Blitzrunde', icon: '⚡', text: '60 Sekunden, so viele Treffer wie möglich', farbe: 'orange', view: blitz },
-  { id: 'duell', name: 'Duell', icon: '⚔️', text: 'Live gegen deine Freunde – mit Code', farbe: 'koralle', view: duell },
+  { id: 'duell', name: 'Live-Quiz', icon: '⚔️', text: 'Wie Kahoot – alle gleichzeitig, mit Code', farbe: 'koralle', view: duell },
   { id: 'rang', name: 'Rangliste', icon: '🏆', text: 'Wer hat diese Woche am meisten gelernt?', farbe: 'mint', view: rangliste },
 ];
 

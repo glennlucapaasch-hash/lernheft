@@ -204,7 +204,8 @@ async function api(req, res, pfad) {
   if (gm && methode === 'GET') { const g = extra.geteiltHolen(gm[1], konto.name); return g ? senden(res, 200, g) : fehler(res, 404, 'Gibt es nicht mehr.'); }
   if (gm && methode === 'DELETE') { extra.geteiltLoeschen(gm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
   if (pfad === '/api/duell' && methode === 'POST') return senden(res, 200, extra.duellAnlegen(konto.name, await koerper(req, 200000)));
-  const dm = /^\/api\/duell\/(\d{4})(\/(beitreten|start|antwort))?$/.exec(pfad);
+  const dm = /^\/api\/duell\/(\d{4})(\/(beitreten|start|antwort|reaktion))?$/.exec(pfad);
+  if (dm && dm[3] === 'reaktion' && methode === 'POST') return senden(res, 200, extra.duellReaktion(dm[1], konto.name, await koerper(req, 1000)));
   if (dm && methode === 'GET') return senden(res, 200, extra.duellStand(dm[1], konto.name));
   if (dm && dm[3] === 'beitreten' && methode === 'POST') return senden(res, 200, extra.duellBeitreten(dm[1], konto.name));
   if (dm && dm[3] === 'start' && methode === 'POST') return senden(res, 200, extra.duellStarten(dm[1], konto.name));

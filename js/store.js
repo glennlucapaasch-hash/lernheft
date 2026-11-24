@@ -44,6 +44,7 @@ function leer() {
     stundenplan: { tage: [[], [], [], [], []] },
     aufgabenErledigt: {},
     bonusXp: 0,
+    abenteuer: { sterne: {}, avatar: '🦊' },
     noten: [],
     notenEinst: { system: 'noten', muendlich: 60, faecher: {} },
   };
@@ -86,6 +87,7 @@ function uebernehmen(daten) {
     stundenplan: d.stundenplan?.tage?.length === 5 ? d.stundenplan : { tage: [[], [], [], [], []] },
     aufgabenErledigt: d.aufgabenErledigt && typeof d.aufgabenErledigt === 'object' ? d.aufgabenErledigt : {},
     bonusXp: Number(d.bonusXp) || 0,
+    abenteuer: { sterne: {}, avatar: '🦊', ...(d.abenteuer && typeof d.abenteuer === 'object' ? d.abenteuer : {}) },
     noten: Array.isArray(d.noten) ? d.noten.filter((n) => n && n.id && Number.isFinite(n.wert)) : [],
     notenEinst: { system: 'noten', muendlich: 60, faecher: {}, ...(d.notenEinst || {}) },
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],

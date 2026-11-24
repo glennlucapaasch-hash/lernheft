@@ -424,8 +424,8 @@ export async function verbindungTesten() {
 
 // ---------- Lernhelfer-Chat ----------
 // verlauf: [{ role: 'user'|'assistant', text, bild?: Blob }]; onText(teilText) für live mitlaufenden Text
-export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
-  const system =
+export async function chatAntwort(verlauf, { kontext = '', onText, system: eigenesSystem } = {}) {
+  const system = eigenesSystem ||
     'Du bist „Lernhelfer“, ein freundlicher, geduldiger Nachhilfelehrer in einer Lern-App für Schülerinnen und Schüler in Deutschland. ' +
     'Antworte auf Deutsch, kurz und klar, in einfachen Sätzen. Erkläre Schritt für Schritt und mit Beispielen. ' +
     'Bei Hausaufgaben und Übungsaufgaben: nicht einfach die Lösung hinschreiben, sondern zuerst einen Denkanstoß oder den ersten Schritt geben und fragen, ob die Person selbst weiterkommt – außer sie bittet ausdrücklich um die Lösung zur Kontrolle. ' +
@@ -627,4 +627,63 @@ export async function wortfelderBilden(vokabeln) {
   });
   const gesehen = new Set();
   return (Array.isArray(r.gruppen) ? r.gruppen : []).map((g) => ({ name: txt(g?.name, 40), karten: (Array.isArray(g?.nummern) ? g.nummern : []).filter((n) => vokabeln[n] && !gesehen.has(n) && gesehen.add(n)).map((n) => vokabeln[n]) })).filter((g) => g.name && g.karten.length);
+}
+
+export async function quizFragen(thema, n = 10) {
+  const r = await frage({
+    maxTokens: 3500,
+    anweisung: `Schreib ${n} Quizfragen für Schülerinnen und Schüler zum Thema „${thema}“ (Schulniveau, sachlich richtig, eindeutig). Jede Frage hat genau 4 kurze Antwortmöglichkeiten (höchstens 8 Wörter), genau eine ist richtig. Gib die richtige Antwort wortgleich wie in den Optionen an. Mische die Position der richtigen Antwort.`,
+    schema: { type: 'object', properties: { fragen: { type: 'array', items: { type: 'object', properties: { frage: { type: 'string' }, optionen: { type: 'array', items: { type: 'string' } }, richtig: { type: 'string' } }, required: ['frage', 'optionen', 'richtig'] } } }, required: ['fragen'] },
+  });
+  return (Array.isArray(r.fragen) ? r.fragen : []).map((f) => ({ frage: txt(f?.frage, 250), opts: (Array.isArray(f?.optionen) ? f.optionen : []).map((o) => txt(o, 120)).filter(Boolean).slice(0, 4), antwort: txt(f?.richtig, 120) }))
+    .filter((f) => f.frage && f.opts.length === 4 && f.opts.includes(f.antwort) && new Set(f.opts).size === 4);
+}
+
+// Lockerer Gesprächspartner zum Sprechen üben
+export async function gespraechAntwort(verlauf, { sprache, szene, niveau }) {
+  const system = `Du bist ein freundlicher Gesprächspartner für eine Schülerin oder einen Schüler, der ${sprache} übt (Niveau: ${niveau}). Situation: ${szene}. ` +
+    `Spiel deine Rolle in der Situation und sprich NUR ${sprache}. Antworte kurz (1–3 Sätze), natürlich und in einfacher Sprache passend zum Niveau, und stell meistens eine Rückfrage, damit das Gespräch weitergeht. ` +
+    'Keine Korrekturen, kein Deutsch, kein Markdown, keine Emojis.';
+  return chatAntwort(verlauf, { system });
+}
+
+export async function gespraechFeedback(verlauf, sprache) {
+  const text = verlauf.map((m) => `${m.role === 'user' ? 'Schüler' : 'Partner'}: ${m.text}`).join('\n');
+  const r = await frage({
+    maxTokens: 2500,
+    anweisung: `Hier ist ein Übungsgespräch auf ${sprache}. Bewerte NUR die Sätze des Schülers (die Texte kamen über Spracherkennung, ignoriere daher Groß-/Kleinschreibung und Satzzeichen). Nenne bis zu 6 echte Fehler mit Verbesserung und kurzer deutscher Erklärung, dazu 2 Dinge, die gut waren, 3 nützliche neue Wörter/Ausdrücke mit deutscher Bedeutung und eine Gesamtnote von 1 bis 6 (deutsches Schulsystem) für die mündliche Leistung. Sei ermutigend. Wenn du dir bei einem Fehler nicht sicher bist, lass ihn weg.\n\n${text}`,
+    schema: { type: 'object', properties: { note: { type: 'integer' }, lob: { type: 'array', items: { type: 'string' } }, fehler: { type: 'array', items: { type: 'object', properties: { falsch: { type: 'string' }, richtig: { type: 'string' }, warum: { type: 'string' } }, required: ['falsch', 'richtig'] } }, woerter: { type: 'array', items: { type: 'object', properties: { fremd: { type: 'string' }, deutsch: { type: 'string' } }, required: ['fremd', 'deutsch'] } } }, required: ['note'] },
+  });
+  return {
+    note: Math.min(6, Math.max(1, Math.round(Number(r.note) || 3))),
+    lob: (r.lob || []).map((x) => txt(x, 200)).filter(Boolean).slice(0, 3),
+    fehler: (r.fehler || []).map((f) => ({ falsch: txt(f?.falsch, 200), richtig: txt(f?.richtig, 200), warum: txt(f?.warum, 200) })).filter((f) => f.falsch && f.richtig).slice(0, 6),
+    woerter: (r.woerter || []).map((w) => ({ fremd: txt(w?.fremd, 80), deutsch: txt(w?.deutsch, 80) })).filter((w) => w.fremd && w.deutsch).slice(0, 5),
+  };
+}
+
+// Foto-Hausaufgabenhilfe: Schritte mit Tipps, Lösung erst am Ende
+export async function aufgabeErklaeren(bilder, frageText) {
+  const r = await frage({
+    bilder,
+    maxTokens: 4000,
+    anweisung: 'Auf dem Foto ist eine Schulaufgabe' + (frageText ? ` (Hinweis der Person: ${frageText})` : '') + '. Hilf beim SELBST-Lösen wie eine gute Nachhilfelehrerin: ' +
+      'Schreib die Aufgabe kurz ab, nenne das Fach und das Thema, erkläre in 1–2 Sätzen den Lösungsweg allgemein, und zerlege die Lösung in 2 bis 6 Schritte. Jeder Schritt hat einen kurzen Denkanstoß (verrät das Ergebnis NICHT) und eine ausführliche Erklärung mit dem Zwischenergebnis. Am Ende die vollständige Lösung. ' +
+      'Wenn mehrere Aufgaben drauf sind, nimm die erste oder die markierte. Wenn du die Aufgabe nicht sicher lesen kannst, sag das in „aufgabe“. ' + MATHE_STIL,
+    schema: { type: 'object', properties: { aufgabe: { type: 'string' }, fach: { type: 'string' }, thema: { type: 'string' }, ansatz: { type: 'string' }, schritte: { type: 'array', items: { type: 'object', properties: { tipp: { type: 'string' }, erklaerung: { type: 'string' } }, required: ['tipp', 'erklaerung'] } }, loesung: { type: 'string' } }, required: ['aufgabe', 'schritte', 'loesung'] },
+  });
+  return {
+    aufgabe: txt(r.aufgabe, 1500), fach: txt(r.fach, 40), thema: txt(r.thema, 80), ansatz: txt(r.ansatz, 600),
+    schritte: (r.schritte || []).map((s) => ({ tipp: txt(s?.tipp, 400), erklaerung: txt(s?.erklaerung, 1500) })).filter((s) => s.tipp || s.erklaerung).slice(0, 8),
+    loesung: txt(r.loesung, 2000),
+  };
+}
+
+export async function loesungPruefen(aufgabe, musterloesung, versuch) {
+  const r = await frage({
+    maxTokens: 1500,
+    anweisung: `Aufgabe: ${aufgabe}\nRichtige Lösung: ${musterloesung}\nLösung der Schülerin/des Schülers: ${versuch}\n\nIst die Lösung der Person richtig? Andere richtige Schreibweisen oder Rechenwege zählen. Gib eine kurze, freundliche Rückmeldung auf Deutsch; bei Fehlern sag, wo der Fehler steckt, ohne alles vorzurechnen. ${MATHE_STIL}`,
+    schema: { type: 'object', properties: { richtig: { type: 'boolean' }, rueckmeldung: { type: 'string' } }, required: ['richtig', 'rueckmeldung'] },
+  });
+  return { richtig: Boolean(r.richtig), text: txt(r.rueckmeldung, 800) };
 }

@@ -199,7 +199,7 @@ function weiter(r) {
   const jetzt = Date.now();
   for (;;) {
     if (r.phase === 'frage') {
-      const alle = [...r.spieler.values()].every((s) => r.i in s.antworten);
+      const alle = r.spieler.size > 0 && [...r.spieler.values()].every((s) => r.i in s.antworten);
       if (alle || jetzt - r.seit >= FRAGE_MS) { r.phase = 'aufloesung'; r.seit = alle ? jetzt : r.seit + FRAGE_MS; continue; }
     } else if (r.phase === 'aufloesung' && jetzt - r.seit >= AUFLOESUNG_MS) {
       r.i += 1;
@@ -216,7 +216,7 @@ function aufraeumen() {
   for (const [c, r] of raeume) if (Date.now() - r.erstellt > 2 * 3600e3) raeume.delete(c);
 }
 
-export function duellAnlegen(host, { titel, fragen }) {
+export function duellAnlegen(host, { titel, fragen, beamer }) {
   aufraeumen();
   if (!Array.isArray(fragen) || fragen.length < 3) throw fehlerMit(400, 'Für ein Duell braucht es mindestens 3 Fragen.');
   let code;
@@ -224,7 +224,8 @@ export function duellAnlegen(host, { titel, fragen }) {
   const r = {
     code, host, titel: String(titel || 'Duell').slice(0, 60), erstellt: Date.now(), phase: 'lobby', i: 0, seit: Date.now(),
     fragen: fragen.slice(0, 20).map((f) => ({ frage: String(f.frage).slice(0, 300), opts: f.opts.slice(0, 4).map((o) => String(o).slice(0, 200)), antwort: String(f.antwort).slice(0, 200) })),
-    spieler: new Map([[host, { punkte: 0, antworten: {} }]]),
+    beamer: Boolean(beamer), reaktionen: [],
+    spieler: beamer ? new Map() : new Map([[host, { punkte: 0, antworten: {} }]]),
   };
   raeume.set(code, r);
   return { code };
@@ -262,12 +263,23 @@ export function duellAntworten(code, name, { i, wahl }) {
   if (r.phase === 'frage' && i === r.i && !(i in s.antworten) && jetzt >= r.seit) {
     const f = r.fragen[i];
     const richtig = wahl === f.antwort;
-    const punkte = richtig ? 500 + Math.round(500 * Math.max(0, 1 - (jetzt - r.seit) / FRAGE_MS)) : 0;
-    s.antworten[i] = { wahl, punkte };
+    s.serie = richtig ? (s.serie || 0) + 1 : 0;
+    const bonus = richtig ? Math.min(300, (s.serie - 1) * 100) : 0;
+    const punkte = richtig ? 500 + Math.round(500 * Math.max(0, 1 - (jetzt - r.seit) / FRAGE_MS)) + bonus : 0;
+    s.antworten[i] = { wahl, punkte, bonus };
     s.punkte += punkte;
     weiter(r);
   }
   return duellStand(code, name);
+}
+
+const EMOJIS = ['🔥', '😂', '😱', '👏', '🤯', '💪'];
+export function duellReaktion(code, name, { emoji }) {
+  const r = raum(code);
+  if (!EMOJIS.includes(emoji) || (!r.spieler.has(name) && r.host !== name)) return { ok: true };
+  r.reaktionen = r.reaktionen.filter((x) => Date.now() - x.t < 4000).slice(-30);
+  if (r.reaktionen.filter((x) => x.von === name).length < 3) r.reaktionen.push({ emoji, von: name, t: Date.now(), id: crypto.randomUUID().slice(0, 8) });
+  return { ok: true };
 }
 
 export function duellStand(code, name) {
@@ -276,13 +288,15 @@ export function duellStand(code, name) {
   const f = r.fragen[r.i];
   const ich = r.spieler.get(name);
   return {
+    beamer: r.beamer, reaktionen: r.reaktionen.filter((x) => jetzt - x.t < 4000).map(({ emoji, id }) => ({ emoji, id })),
+    verteilung: r.phase === 'aufloesung' && f ? f.opts.map((o) => [...r.spieler.values()].filter((s) => s.antworten[r.i]?.wahl === o).length) : null,
     code: r.code, titel: r.titel, host: r.host, phase: r.phase, i: r.i, n: r.fragen.length, dabei: Boolean(ich),
     countdown: r.phase === 'frage' && jetzt < r.seit ? r.seit - jetzt : 0,
     rest: r.phase === 'frage' ? Math.max(0, Math.min(FRAGE_MS, r.seit + FRAGE_MS - jetzt)) : 0,
     frage: f && (r.phase === 'frage' || r.phase === 'aufloesung') ? { frage: f.frage, opts: f.opts } : null,
     antwort: r.phase === 'aufloesung' ? f.antwort : null,
     meine: ich?.antworten[r.i] || null,
-    spieler: [...r.spieler.entries()].map(([n, s]) => ({ name: n, punkte: s.punkte, fertig: r.i in s.antworten, plus: r.phase === 'aufloesung' ? (s.antworten[r.i]?.punkte || 0) : 0 })).sort((a, b) => b.punkte - a.punkte),
+    spieler: [...r.spieler.entries()].map(([n, s]) => ({ name: n, punkte: s.punkte, serie: s.serie || 0, bonus: r.phase === 'aufloesung' ? (s.antworten[r.i]?.bonus || 0) : 0, fertig: r.i in s.antworten, plus: r.phase === 'aufloesung' ? (s.antworten[r.i]?.punkte || 0) : 0 })).sort((a, b) => b.punkte - a.punkte),
   };
 }
 

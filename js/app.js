@@ -20,6 +20,10 @@ import { noten } from './views/noten.js';
 import { mehrSeite, sucheOeffnen, GRUPPEN } from './views/mehr.js';
 import { hausaufgaben, stundenplan, formeln } from './views/werkzeuge.js';
 import { gruppe } from './views/gruppe.js';
+import { duell } from './views/duell.js';
+import { sprechpartner } from './views/sprechpartner.js';
+import { hilfe } from './views/hilfe.js';
+import { abenteuer } from './views/abenteuer.js';
 import { neueAbzeichen } from './erfolge.js';
 import * as lernzeit from './lernzeit.js';
 import { aktuellesFach } from './views/lernen.js';
@@ -32,6 +36,10 @@ const BEREICHE = [
   { id: 'mehr', name: 'Mehr', icon: 'raster', view: (ctx) => mehrSeite(ctx, BEREICHE), unten: true },
   { id: 'themen', name: 'Themen', icon: 'buch', view: themen, gruppe: 'lernen', text: 'Erklärungen Klasse 5–12' },
   { id: 'klausur', name: 'Probeklausur', icon: 'klausur', view: klausur, gruppe: 'lernen', text: 'Mit Note und Korrektur' },
+  { id: 'abenteuer', name: 'Abenteuer', icon: 'pokal', view: abenteuer, gruppe: 'lernen', text: 'Welten, Bosse, Avatare' },
+  { id: 'live', name: 'Live-Quiz', icon: 'gruppe', view: duell, gruppe: 'lernen', nurKonto: true, text: 'Alle spielen gleichzeitig' },
+  { id: 'sprechen', name: 'Sprechpartner', icon: 'lautsprecher', view: sprechpartner, gruppe: 'lernen', text: 'Gespräche mit der KI üben' },
+  { id: 'hilfe', name: 'Aufgabenhilfe', icon: 'scan', view: hilfe, gruppe: 'werkzeuge', text: 'Foto → Schritt-für-Schritt-Tipps' },
   { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, gruppe: 'lernen', text: 'Memory, Wortregen, Duell …' },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, gruppe: 'lernen', text: 'KI fragen' },
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe, gruppe: 'werkzeuge', text: 'Rechner, Funktionen, Erklären' },
