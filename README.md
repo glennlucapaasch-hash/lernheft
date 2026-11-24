@@ -13,6 +13,8 @@ Eine Lern-App für die Schule, die im Browser läuft – auf Handy, Tablet und P
 - **Stapel teilen**, **Bilder auf Karten**, **tägliche Erinnerungen** aufs Handy.
 - **Themen:** 98 Themen Klasse 5–10 (Mathe, Deutsch, Englisch, Französisch, Spanisch) nach dem Hamburger Bildungsplan, mit Erklärung, Beispiel, Merksatz und KI-Übungskarten.
 - **Duell:** live gegeneinander mit Code, **Level & Abzeichen**, **Wochenrückblick**.
+- **Mündlich abfragen:** Antwort ins Mikrofon sprechen.
+- **Vokabelspiele:** Wortregen, Buchstabensalat, Galgenmännchen.
 - **Statistik:** Lernserie, Tagesziel, Abfragen der letzten 14 Tage, Lernstand und Notenverlauf.
 - Hell („Heft“) oder dunkel („Tafel“), offline nutzbar, als App auf den Startbildschirm legbar.
 

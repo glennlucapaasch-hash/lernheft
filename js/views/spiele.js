@@ -5,8 +5,9 @@ import { FAECHER } from '../store.js';
 import { shuffle, mcOptionen } from '../exam.js';
 import { istServerModus } from '../ai.js';
 import { duell } from './duell.js';
+import { wortregen, buchstabensalat, galgenmaennchen } from './wortspiele.js';
 
-const ui = { tab: 'memory', deckId: '', memory: null, blitz: null, rang: null, rangLaden: false };
+const ui = { tab: null, deckId: '', memory: null, blitz: null, rang: null, rangLaden: false };
 
 const spielbar = (min) => store.getState().decks.filter((d) => store.cardsOf(d.id).filter((c) => c.front && c.back).length >= min);
 
@@ -163,20 +164,32 @@ function rangliste(ctx) {
       h('span', { class: 'rang-zahl' }, h('b', null, String(r.blitz)), h('small', null, 'Blitz-Rekord'))))));
 }
 
-const TABS = [
-  { id: 'memory', name: 'Memory', view: memory },
-  { id: 'blitz', name: 'Blitzrunde', view: blitz },
-  { id: 'duell', name: 'Duell', view: duell },
-  { id: 'rang', name: 'Rangliste', view: rangliste },
+const SPIELE = [
+  { id: 'memory', name: 'Memory', icon: '🃏', text: 'Paare aus Wort und Übersetzung finden', farbe: 'blau', view: memory, stapel: true },
+  { id: 'regen', name: 'Wortregen', icon: '🌧️', text: 'Übersetzung tippen, bevor das Wort aufschlägt', farbe: 'himmel', view: (ctx) => wortregen(ctx, ui.deckId || 'alle'), stapel: true },
+  { id: 'salat', name: 'Buchstabensalat', icon: '🔤', text: 'Durcheinandergewürfelte Buchstaben ordnen', farbe: 'gelb', view: (ctx) => buchstabensalat(ctx, ui.deckId || 'alle'), stapel: true },
+  { id: 'galgen', name: 'Galgenmännchen', icon: '🪢', text: 'Das Wort Buchstabe für Buchstabe erraten', farbe: 'rosa', view: (ctx) => galgenmaennchen(ctx, ui.deckId || 'alle'), stapel: true },
+  { id: 'blitz', name: 'Blitzrunde', icon: '⚡', text: '60 Sekunden, so viele Treffer wie möglich', farbe: 'orange', view: blitz },
+  { id: 'duell', name: 'Duell', icon: '⚔️', text: 'Live gegen deine Freunde – mit Code', farbe: 'koralle', view: duell },
+  { id: 'rang', name: 'Rangliste', icon: '🏆', text: 'Wer hat diese Woche am meisten gelernt?', farbe: 'mint', view: rangliste },
 ];
 
 export function spiele(ctx) {
-  if (!store.getState().cards.length && ui.tab !== 'rang') ui.tab = 'duell';
-  if (ctx.optionen?.neu) { ui.rang = null; }
-  const aktiv = TABS.find((t) => t.id === ui.tab) || TABS[0];
+  if (ctx.optionen?.neu) { ui.tab = null; ui.rang = null; }
+  const aktiv = SPIELE.find((t) => t.id === ui.tab);
+  if (!aktiv) {
+    return h('div', { class: 'seite' },
+      h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Spiele'), h('span', { class: 'spiel-pokal', 'aria-hidden': 'true' }, icon('pokal', 30))),
+      !store.getState().cards.length && h('p', { class: 'blatt' }, 'Die meisten Spiele brauchen Karteikarten. Duell und Rangliste gehen auch ohne.'),
+      h('div', { class: 'spiele-gitter' }, SPIELE.map((sp, i) => h('button', { class: `spiel-kachel farbe-${sp.farbe}`, style: `animation-delay:${i * 0.05}s`, onclick: () => { ui.tab = sp.id; if (sp.id === 'blitz') ui.blitz = null; ctx.refresh(); scrollTo(0, 0); } },
+        h('span', { class: 'spiel-kachel-icon', 'aria-hidden': 'true' }, sp.icon),
+        h('strong', null, sp.name),
+        h('small', null, sp.text)))));
+  }
   return h('div', { class: 'seite' },
-    h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Spiele'), h('span', { class: 'spiel-pokal', 'aria-hidden': 'true' }, icon('pokal', 30))),
-    h('div', { class: 'reiter', role: 'tablist', 'aria-label': 'Spiele' }, TABS.map((t) =>
-      h('button', { role: 'tab', 'aria-selected': String(t.id === aktiv.id), class: 'reiter-knopf', onclick: () => { ui.tab = t.id; if (t.id === 'blitz' && ui.blitz?.phase !== 'laeuft') ui.blitz = null; ctx.refresh(); } }, t.name))),
-    h('div', { role: 'tabpanel', 'aria-label': aktiv.name }, aktiv.view(ctx)));
+    h('div', { class: 'spiel-zurueck' },
+      h('button', { class: 'knopf knopf-leise', onclick: () => { ui.tab = null; ctx.refresh(); } }, icon('zurueck', 18), 'Alle Spiele'),
+      h('h1', { class: 'spiel-titel' }, `${aktiv.icon} ${aktiv.name}`)),
+    aktiv.stapel && aktiv.id !== 'memory' && h('div', { class: 'spiel-kopf' }, stapelWahl(3, () => { ctx.refresh(); })),
+    aktiv.view(ctx));
 }

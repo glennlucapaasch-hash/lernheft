@@ -135,7 +135,11 @@ export function start(ctx) {
   return h('div', { class: 'seite' },
     h('header', { class: 'seiten-kopf' },
       h('div', null,
-        h('h1', { class: 'handschrift' }, name ? `Hallo ${name}!` : 'Hallo!'),
+        h('h1', { class: 'handschrift' }, (() => {
+          const std = new Date().getHours();
+          const gruss = std < 11 ? 'Guten Morgen' : std < 17 ? 'Hallo' : 'Guten Abend';
+          return [`${gruss}${name ? ` ${name}` : ''}! `, h('span', { class: 'winken', 'aria-hidden': 'true' }, '👋')];
+        })()),
         h('p', { class: 'datum' }, datumLang())),
       h('div', { class: 'kopf-links' },
         h('a', { class: 'knopf-icon', href: '#erfolge', 'aria-label': 'Erfolge' }, icon('pokal')),
@@ -148,7 +152,7 @@ export function start(ctx) {
         h('div', { class: 'ziel' },
           h('label', { for: 'ziel-balken' }, `Tagesziel: ${Math.min(heute.abfragen, ziel)} von ${ziel} Abfragen`),
           h('progress', { id: 'ziel-balken', max: ziel, value: Math.min(heute.abfragen, ziel) })),
-        h('p', { class: 'serie' }, serie > 0 ? `${mehrzahl(serie, 'Tag', 'Tage')} in Folge gelernt` : 'Heute beginnt deine Lernserie.'))),
+        h('p', { class: 'serie' }, serie > 0 ? [h('span', { class: 'flamme', 'aria-hidden': 'true' }, '🔥'), ` ${mehrzahl(serie, 'Tag', 'Tage')} in Folge gelernt`] : 'Heute beginnt deine Lernserie.'))),
 
     h('nav', { class: 'schnell', 'aria-label': 'Schnellzugriff' },
       h('a', { class: 'schnell-knopf', href: '#scannen' }, icon('scan', 26), h('span', null, 'Seite scannen')),

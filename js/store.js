@@ -12,6 +12,11 @@ export const FAECHER = {
   biologie: { name: 'Biologie', farbe: 'mint' },
   chemie: { name: 'Chemie', farbe: 'orange' },
   geschichte: { name: 'Geschichte', farbe: 'sand' },
+  latein: { name: 'Latein', farbe: 'stein', sprache: 'Lateinische' },
+  physik: { name: 'Physik', farbe: 'himmel' },
+  pgw: { name: 'PGW', farbe: 'koralle' },
+  geografie: { name: 'Geografie', farbe: 'moos' },
+  informatik: { name: 'Informatik', farbe: 'grau' },
   sonstiges: { name: 'Sonstiges', farbe: 'weiss' },
 };
 

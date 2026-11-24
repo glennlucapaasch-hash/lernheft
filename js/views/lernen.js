@@ -5,6 +5,7 @@ import { FAECHER } from '../store.js';
 import { intervalText } from '../srs.js';
 import { checkAnswer } from '../check.js';
 import { shuffle, mcOptionen } from '../exam.js';
+import { hoeren, stopHoeren, kannHoeren } from '../sprache.js';
 
 const SONDERZEICHEN = {
   franzoesisch: ['é', 'è', 'ê', 'ë', 'à', 'â', 'ç', 'î', 'ï', 'ô', 'ù', 'û', 'œ'],
@@ -55,7 +56,7 @@ function bewerten(ctx, karte, rating) {
     sitzung.erledigt += 1;
     if (rating > 0 && schon === 0) sitzung.richtig += 1;
   }
-  Object.assign(sitzung, { phase: 'frage', urteil: null, eingabe: '', optionen: null });
+  Object.assign(sitzung, { phase: 'frage', urteil: null, eingabe: '', optionen: null, gesprochen: false });
   ctx.refresh();
 }
 
@@ -149,7 +150,8 @@ function lernen(ctx) {
   }
 
   // ---------- Antwort schreiben ----------
-  if (modus === 'schreiben') {
+  if (modus === 'schreiben' || modus === 'sprechen') {
+    const sprechModus = modus === 'sprechen';
     const zeichen = !fremdVorn ? SONDERZEICHEN[deck?.fach] : null;
     const eingabe = h('input', {
       type: 'text', class: 'eingabe-gross', value: sitzung.eingabe, disabled: offen,
@@ -165,6 +167,29 @@ function lernen(ctx) {
       ctx.refresh();
     };
     const weiter = () => bewerten(ctx, karte, sitzung.urteil === 'richtig' ? 2 : sitzung.urteil === 'fast' ? 1 : 0);
+    // Mündlich: sprechen, beste der erkannten Varianten werten
+    const antwortSprache = !fremdVorn && fach.lang ? fach.lang : 'de-DE';
+    const mikroText = h('p', { class: 'mikro-text', 'aria-live': 'polite' }, kannHoeren() ? 'Tippe aufs Mikrofon und sprich deine Antwort.' : 'Tipp ins Feld und nutze die Diktier-Taste 🎤 deiner Tastatur.');
+    const mikro = sprechModus && !offen && kannHoeren() && h('button', { type: 'button', class: 'mikro', 'aria-label': 'Antwort sprechen', onclick: async () => {
+      if (mikro.classList.contains('hoert')) { stopHoeren(); return; }
+      mikro.classList.add('hoert');
+      mikroText.textContent = 'Ich höre zu …';
+      try {
+        const r = await hoeren(antwortSprache, { onZwischen: (t) => { mikroText.textContent = t || 'Ich höre zu …'; } });
+        const reihenfolge = { richtig: 0, fast: 1, falsch: 2 };
+        let beste = { text: r.text, u: checkAnswer(r.text, antwort) };
+        for (const a of r.alternativen) { const u = checkAnswer(a, antwort); if (reihenfolge[u] < reihenfolge[beste.u]) beste = { text: a, u }; }
+        sitzung.eingabe = beste.text;
+        sitzung.urteil = beste.u;
+        sitzung.gesprochen = true;
+        sitzung.phase = 'antwort';
+        ctx.refresh();
+      } catch (e) {
+        mikro.classList.remove('hoert');
+        if (e.message !== 'abgebrochen') mikroText.textContent = e.message;
+      }
+    } }, icon('mikro', 34));
+    ctx.onLeave(stopHoeren);
     const urteilText = { richtig: 'Richtig!', fast: 'Fast richtig – schau auf Schreibweise und Artikel.', falsch: 'Noch nicht.' };
     const urteilIcon = { richtig: 'check', fast: 'halb', falsch: 'x' };
 
@@ -173,7 +198,9 @@ function lernen(ctx) {
       h('div', { class: `karteikarte gross farbe-${fach.farbe}` },
         h('div', { class: 'karte-seite' }, inhalt(frage, bildF), fremdVorn && tonKnopf(karte.front))),
       h('form', { class: 'schreiben', onsubmit: offen ? (e) => { e.preventDefault(); weiter(); } : pruefen },
-        eingabe,
+        sprechModus && !offen && h('div', { class: 'mikro-feld' }, mikro, mikroText),
+        sprechModus && offen && sitzung.gesprochen && h('p', { class: 'mikro-text' }, 'Verstanden: „', h('b', null, sitzung.eingabe), '“'),
+        (!sprechModus || !kannHoeren() || offen) && eingabe,
         zeichen && !offen && h('div', { class: 'sonderzeichen', 'aria-label': 'Sonderzeichen einfügen' }, zeichen.map((z) =>
           h('button', { type: 'button', class: 'knopf knopf-zeichen', onclick: () => {
             const a = eingabe.selectionStart ?? eingabe.value.length;
@@ -195,7 +222,7 @@ function lernen(ctx) {
               h('button', { class: 'knopf knopf-haupt knopf-breit', type: 'submit' }, 'Weiter'),
             ]
           : h('button', { class: 'knopf knopf-haupt knopf-breit', type: 'submit' }, 'Prüfen')));
-    queueMicrotask(() => (offen ? seite.querySelector('button[type=submit]') : eingabe)?.focus());
+    queueMicrotask(() => (offen ? seite.querySelector('button[type=submit]') : sprechModus && kannHoeren() ? null : eingabe)?.focus());
     return seite;
   }
 

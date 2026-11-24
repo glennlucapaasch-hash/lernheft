@@ -136,6 +136,7 @@ function lernDialog(ctx, deck) {
       { wert: 'umdrehen', titel: 'Karten umdrehen', text: 'Antwort im Kopf, dann selbst einschätzen' },
       { wert: 'schreiben', titel: 'Antwort schreiben', text: 'Die App prüft Schreibweise und Artikel' },
       { wert: 'ankreuzen', titel: 'Ankreuzen', text: 'Vier Möglichkeiten, eine stimmt', gesperrt: alle.length < 4 },
+      { wert: 'sprechen', titel: 'Mündlich 🎤', text: 'Antwort laut sagen – auch zum Aussprache-Üben' },
     ], wahl.modus, (v) => { wahl.modus = v; }),
     h('h3', null, 'Richtung'),
     auswahl('richtung', [

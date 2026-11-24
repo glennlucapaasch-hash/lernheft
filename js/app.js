@@ -149,8 +149,9 @@ function zeichnen() {
       h('button', { class: 'knopf knopf-haupt', onclick: () => ctx.go('start') }, 'Zurück zum Start'));
   }
   ctx.optionen = null;
-  inhalt.classList.add('auftritt');
+  if (!document.startViewTransition) inhalt.classList.add('auftritt');
   main.replaceChildren(inhalt);
+  effekte(main);
   // Neue Abzeichen feiern
   try {
     for (const a of neueAbzeichen()) toast(`${a.icon} Neues Abzeichen: ${a.name}!`);
@@ -171,6 +172,35 @@ function navZeichnen(aktivId) {
   );
 }
 
+// ---------- Kleine Effekte: Zahlen zählen hoch, Karten neigen sich ----------
+function effekte(wurzel) {
+  if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+  for (const el of wurzel.querySelectorAll('.zahlen dd, .rb-zahl, .ende-zahl-gross')) {
+    const m = /^(\d+)(.*)$/.exec(el.textContent.trim());
+    if (!m || Number(m[1]) < 2 || el.dataset.gezaehlt) continue;
+    el.dataset.gezaehlt = '1';
+    const ziel = Number(m[1]);
+    const start = performance.now();
+    const dauer = Math.min(900, 300 + ziel * 8);
+    const schritt = (t) => {
+      const p = Math.min(1, (t - start) / dauer);
+      el.textContent = `${Math.round(ziel * (1 - (1 - p) ** 3))}${m[2]}`;
+      if (p < 1) requestAnimationFrame(schritt);
+    };
+    requestAnimationFrame(schritt);
+  }
+  for (const el of wurzel.querySelectorAll('.stapel, .spiel-kachel, .notiz-kachel-blatt')) {
+    el.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'touch') return;
+      const r = el.getBoundingClientRect();
+      const x = (e.clientX - r.left) / r.width - 0.5;
+      const y = (e.clientY - r.top) / r.height - 0.5;
+      el.style.transform = `perspective(700px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateY(-3px)`;
+    });
+    el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+  }
+}
+
 // ---------- Aussehen: Heft (hell) oder Tafel (dunkel) ----------
 const dunkel = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
 export function themeAnwenden() {
@@ -182,9 +212,12 @@ export function themeAnwenden() {
 dunkel?.addEventListener?.('change', () => { themeAnwenden(); zeichnen(); });
 ctx.themeAnwenden = themeAnwenden;
 
+const ruhig = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
 addEventListener('hashchange', () => {
   ueberlagerung = null;
-  zeichnen();
+  // Weicher Übergang zwischen den Bereichen (wo der Browser es kann)
+  if (document.startViewTransition && !ruhig?.matches) document.startViewTransition(() => zeichnen());
+  else zeichnen();
   main.focus({ preventScroll: true });
   scrollTo(0, 0);
 });
