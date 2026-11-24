@@ -53,7 +53,7 @@ export function themen(ctx) {
       h('section', { class: 'themen-fach' },
         h('h2', null, h('span', { class: `geteilt-punkt farbe-${FAECHER[fach].farbe}` }), FAECHER[fach].name),
         stufen.map(([st, l]) => h('div', { class: 'themen-stufe' },
-          h('h3', null, `Klasse ${st}`),
+          h('h3', null, st === '11/12' ? 'Oberstufe (11/12)' : `Klasse ${st}`),
           h('ul', null, l.map((t) => h('li', null, h('button', { class: `themen-zeile ${ui.offen === t.id ? 'ist-offen' : ''}`, onclick: () => { ui.offen = t.id; ctx.refresh(); scrollTo({ top: 0, behavior: 'smooth' }); } },
             h('span', null, t.titel), icon('zurueck', 16))))))))) : [h('div', { class: 'blatt' },
         h('p', null, `Zu „${ui.suche}“ habe ich kein Thema im Verzeichnis.`),
@@ -65,11 +65,11 @@ export function themen(ctx) {
 
   return h('div', { class: 'seite' },
     h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Themen')),
-    h('p', { class: 'einleitung' }, `${liste.length} Themen von Klasse 5 bis 10 – mit Erklärung, Beispiel und Merksatz. Aus jedem Thema macht die KI dir Übungskarten.`),
+    h('p', { class: 'einleitung' }, `${liste.length} Themen von Klasse 5 bis 12 – mit Erklärung, Beispiel und Merksatz. Aus jedem Thema macht die KI dir Übungskarten.`),
     offen && detail(ctx, offen),
     h('input', { type: 'search', class: 'suche', placeholder: 'Thema suchen, z. B. Pythagoras, if-clauses, Komma', 'aria-label': 'Thema suchen', value: ui.suche, oninput: (e) => { ui.suche = e.target.value; listeZeichnen(); } }),
     h('div', { class: 'chips', role: 'group', 'aria-label': 'Fach' }, chip('fach', 'alle', 'Alle Fächer'), FACH_REIHE.map((f) => chip('fach', f, FAECHER[f].name))),
-    h('div', { class: 'chips', role: 'group', 'aria-label': 'Klasse' }, chip('stufe', 'alle', 'Alle Klassen'), STUFEN.map((s) => chip('stufe', s, `Klasse ${s}`))),
+    h('div', { class: 'chips', role: 'group', 'aria-label': 'Klasse' }, chip('stufe', 'alle', 'Alle Klassen'), STUFEN.map((s) => chip('stufe', s, s === '11/12' ? 'Oberstufe' : `Klasse ${s}`))),
     treffer && ergebnis,
     h('p', { class: 'hinweis' }, QUELLE));
 }
