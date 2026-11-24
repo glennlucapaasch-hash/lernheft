@@ -486,3 +486,15 @@ export async function chatAntwort(verlauf, { kontext = '', onText } = {}) {
     throw new KiFehler('Die KI hat nichts geantwortet. Versuch es noch mal.');
   }
 }
+
+export async function themaKarten(titel, fach, stufe, erklaerung) {
+  const r = await frage({
+    anweisung:
+      `Erstelle 8 Karteikarten zum Thema „${titel}“ (Fach ${fach}, Klasse ${stufe}, Hamburger Gymnasium). ` +
+      'Mische: Fragen zum Verständnis, Regeln und vor allem kleine Übungsaufgaben mit Lösung. ' +
+      'front: Frage oder Aufgabe. back: kurze richtige Antwort. note: kurze Erklärung oder Rechenweg. ' +
+      'Bei Fremdsprachen: Lückensätze und Übersetzungen. ' + MATHE_STIL + `\n\nZum Thema:\n${erklaerung}`,
+    schema: { type: 'object', properties: { karten: KARTEN_SCHEMA }, required: ['karten'] },
+  });
+  return karten(r.karten, 12);
+}

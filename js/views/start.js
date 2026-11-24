@@ -1,5 +1,6 @@
 import { h, icon, datumLang, mehrzahl, toast, modal, feld, nachfragen } from '../dom.js';
 import { stufe } from '../srs.js';
+import { level, rueckblick } from '../erfolge.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { lernenStarten } from './lernen.js';
@@ -96,6 +97,18 @@ function termineBereich(ctx) {
       : h('button', { class: 'termin-leer', onclick: () => terminDialog(ctx) }, icon('kalender', 22), h('span', null, 'Trag deine nächste Klassenarbeit ein – dann plant die App, wie viel du jeden Tag lernen solltest.')));
 }
 
+function rueckblickHinweis(ctx) {
+  const l = level();
+  const tag = new Date().getDay(); // So = 0, Mo = 1
+  const r = (tag === 0 || tag === 1) ? rueckblick() : null;
+  return h('a', { class: 'level-leiste', href: '#erfolge', onclick: () => { if (r?.abfragen) ctx.optionen = { tab: 'rueckblick' }; } },
+    h('span', { class: 'level-mini handschrift' }, String(l.lvl)),
+    h('span', { class: 'level-leiste-text' },
+      h('strong', null, r?.abfragen ? 'Dein Wochenrückblick ist da 🎉' : `Level ${l.lvl} – ${l.titel}`),
+      h('progress', { max: 1, value: l.anteil, 'aria-label': 'Fortschritt zum nächsten Level' })),
+    icon('pokal', 22));
+}
+
 export function start(ctx) {
   const s = store.getState();
   if (!s.decks.length) return willkommen(ctx);
@@ -125,6 +138,7 @@ export function start(ctx) {
         h('h1', { class: 'handschrift' }, name ? `Hallo ${name}!` : 'Hallo!'),
         h('p', { class: 'datum' }, datumLang())),
       h('div', { class: 'kopf-links' },
+        h('a', { class: 'knopf-icon', href: '#erfolge', 'aria-label': 'Erfolge' }, icon('pokal')),
         h('a', { class: 'knopf-icon', href: '#statistik', 'aria-label': 'Statistik' }, icon('statistik')),
         h('a', { class: 'knopf-icon', href: '#einstellungen', 'aria-label': 'Einstellungen' }, icon('einstellungen')))),
 
@@ -139,9 +153,11 @@ export function start(ctx) {
     h('nav', { class: 'schnell', 'aria-label': 'Schnellzugriff' },
       h('a', { class: 'schnell-knopf', href: '#scannen' }, icon('scan', 26), h('span', null, 'Seite scannen')),
       h('a', { class: 'schnell-knopf', href: '#klausur' }, icon('klausur', 26), h('span', null, 'Probeklausur')),
+      h('a', { class: 'schnell-knopf', href: '#themen' }, icon('buch', 26), h('span', null, 'Themen')),
       h('a', { class: 'schnell-knopf', href: '#spiele' }, icon('spiele', 26), h('span', null, 'Spiele')),
       h('a', { class: 'schnell-knopf', href: '#mathe' }, icon('mathe', 26), h('span', null, 'Rechner'))),
 
+    rueckblickHinweis(ctx),
     termineBereich(ctx),
 
     h('section', null,

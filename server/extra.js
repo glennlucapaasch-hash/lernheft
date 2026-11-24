@@ -175,3 +175,100 @@ export async function testSenden(name) {
   for (const sub of a?.subs || []) { try { if ((await pushSenden(sub, { titel: 'Lernheft', text: 'So sieht deine Erinnerung aus. 👋' })) < 300) ok += 1; } catch { /* egal */ } }
   return ok;
 }
+
+// ---------- Gruppen-Duell (live, im Speicher) ----------
+const raeume = new Map();
+const FRAGE_MS = 15000;
+const AUFLOESUNG_MS = 4000;
+const fehlerMit = (status, m) => Object.assign(new Error(m), { status });
+
+function weiter(r) {
+  const jetzt = Date.now();
+  for (;;) {
+    if (r.phase === 'frage') {
+      const alle = [...r.spieler.values()].every((s) => r.i in s.antworten);
+      if (alle || jetzt - r.seit >= FRAGE_MS) { r.phase = 'aufloesung'; r.seit = alle ? jetzt : r.seit + FRAGE_MS; continue; }
+    } else if (r.phase === 'aufloesung' && jetzt - r.seit >= AUFLOESUNG_MS) {
+      r.i += 1;
+      r.seit += AUFLOESUNG_MS;
+      r.phase = r.i >= r.fragen.length ? 'ende' : 'frage';
+      if (r.phase === 'frage') r.seit = Math.max(r.seit, jetzt - 1000);
+      continue;
+    }
+    return;
+  }
+}
+
+function aufraeumen() {
+  for (const [c, r] of raeume) if (Date.now() - r.erstellt > 2 * 3600e3) raeume.delete(c);
+}
+
+export function duellAnlegen(host, { titel, fragen }) {
+  aufraeumen();
+  if (!Array.isArray(fragen) || fragen.length < 3) throw fehlerMit(400, 'Für ein Duell braucht es mindestens 3 Fragen.');
+  let code;
+  do code = String(crypto.randomInt(1000, 10000)); while (raeume.has(code));
+  const r = {
+    code, host, titel: String(titel || 'Duell').slice(0, 60), erstellt: Date.now(), phase: 'lobby', i: 0, seit: Date.now(),
+    fragen: fragen.slice(0, 20).map((f) => ({ frage: String(f.frage).slice(0, 300), opts: f.opts.slice(0, 4).map((o) => String(o).slice(0, 200)), antwort: String(f.antwort).slice(0, 200) })),
+    spieler: new Map([[host, { punkte: 0, antworten: {} }]]),
+  };
+  raeume.set(code, r);
+  return { code };
+}
+
+function raum(code) {
+  const r = raeume.get(code);
+  if (!r) throw fehlerMit(404, 'Dieses Duell gibt es nicht (mehr). Prüf den Code.');
+  weiter(r);
+  return r;
+}
+
+export function duellBeitreten(code, name) {
+  const r = raum(code);
+  if (!r.spieler.has(name)) {
+    if (r.phase !== 'lobby') throw fehlerMit(400, 'Das Duell hat schon angefangen.');
+    if (r.spieler.size >= 30) throw fehlerMit(400, 'Das Duell ist voll.');
+    r.spieler.set(name, { punkte: 0, antworten: {} });
+  }
+  return duellStand(code, name);
+}
+
+export function duellStarten(code, name) {
+  const r = raum(code);
+  if (r.host !== name) throw fehlerMit(403, 'Nur wer das Duell erstellt hat, kann es starten.');
+  if (r.phase === 'lobby') { r.phase = 'frage'; r.i = 0; r.seit = Date.now() + 3000; } // 3 s Countdown
+  return duellStand(code, name);
+}
+
+export function duellAntworten(code, name, { i, wahl }) {
+  const r = raum(code);
+  const s = r.spieler.get(name);
+  if (!s) throw fehlerMit(403, 'Du bist nicht in diesem Duell.');
+  const jetzt = Date.now();
+  if (r.phase === 'frage' && i === r.i && !(i in s.antworten) && jetzt >= r.seit) {
+    const f = r.fragen[i];
+    const richtig = wahl === f.antwort;
+    const punkte = richtig ? 500 + Math.round(500 * Math.max(0, 1 - (jetzt - r.seit) / FRAGE_MS)) : 0;
+    s.antworten[i] = { wahl, punkte };
+    s.punkte += punkte;
+    weiter(r);
+  }
+  return duellStand(code, name);
+}
+
+export function duellStand(code, name) {
+  const r = raum(code);
+  const jetzt = Date.now();
+  const f = r.fragen[r.i];
+  const ich = r.spieler.get(name);
+  return {
+    code: r.code, titel: r.titel, host: r.host, phase: r.phase, i: r.i, n: r.fragen.length, dabei: Boolean(ich),
+    countdown: r.phase === 'frage' && jetzt < r.seit ? r.seit - jetzt : 0,
+    rest: r.phase === 'frage' ? Math.max(0, Math.min(FRAGE_MS, r.seit + FRAGE_MS - jetzt)) : 0,
+    frage: f && (r.phase === 'frage' || r.phase === 'aufloesung') ? { frage: f.frage, opts: f.opts } : null,
+    antwort: r.phase === 'aufloesung' ? f.antwort : null,
+    meine: ich?.antworten[r.i] || null,
+    spieler: [...r.spieler.entries()].map(([n, s]) => ({ name: n, punkte: s.punkte, fertig: r.i in s.antworten, plus: r.phase === 'aufloesung' ? (s.antworten[r.i]?.punkte || 0) : 0 })).sort((a, b) => b.punkte - a.punkte),
+  };
+}

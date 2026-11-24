@@ -8,6 +8,7 @@ export const FAECHER = {
   franzoesisch: { name: 'Französisch', farbe: 'rosa', lang: 'fr-FR', sprache: 'Französische' },
   spanisch: { name: 'Spanisch', farbe: 'gelb', lang: 'es-ES', sprache: 'Spanische' },
   mathe: { name: 'Mathe', farbe: 'gruen' },
+  deutsch: { name: 'Deutsch', farbe: 'lila' },
   sonstiges: { name: 'Sonstiges', farbe: 'weiss' },
 };
 
@@ -29,7 +30,8 @@ function leer() {
     chat: [],
     notizen: [],
     termine: [],
-    spiele: { blitz: 0 },
+    spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0 },
+    abzeichen: {},
   };
 }
 
@@ -63,7 +65,8 @@ function uebernehmen(daten) {
     exams: Array.isArray(d.exams) ? d.exams : [],
     rechner: { ...basis.rechner, ...(d.rechner || {}) },
     termine: Array.isArray(d.termine) ? d.termine.filter((t) => t && t.id && t.datum) : [],
-    spiele: { blitz: 0, ...(d.spiele || {}) },
+    spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0, ...(d.spiele || {}) },
+    abzeichen: d.abzeichen && typeof d.abzeichen === 'object' ? d.abzeichen : {},
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
     chat: Array.isArray(d.chat) ? d.chat.filter((m) => m && typeof m.text === 'string').slice(-40) : [],
   };

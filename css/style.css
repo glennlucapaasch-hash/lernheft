@@ -251,6 +251,7 @@ progress::-moz-progress-bar { background: var(--koenigsblau); }
 .farbe-gelb { --kf: var(--k-gelb); }
 .farbe-gruen { --kf: var(--k-gruen); }
 .farbe-weiss { --kf: var(--k-weiss); }
+.farbe-lila { --kf: #e8defa; }
 
 .stapel-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: 1.2rem 1.1rem; }
 .stapel { display: grid; grid-template-rows: 2.2rem 1fr auto; text-align: left; padding: 0 0.9rem 0.7rem; min-height: 9rem; width: 100%; transition: transform 0.12s, box-shadow 0.12s; }
@@ -269,7 +270,7 @@ progress::-moz-progress-bar { background: var(--koenigsblau); }
 .heute-stand { display: grid; gap: 0.7rem 2rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); align-items: end; padding-top: 0.9rem; border-top: 1px solid var(--linie); }
 .ziel label { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
 .serie { font-size: 0.9rem; font-weight: 700; }
-.schnell { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+.schnell { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.4rem, 1fr)); gap: 0.5rem; }
 .schnell-knopf { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.8rem 0.3rem; border: 1.5px solid var(--tinte); border-radius: 8px; background: var(--blatt); color: var(--tinte); text-decoration: none; font-weight: 600; font-size: 0.88rem; text-align: center; line-height: 1.2; }
 .schnell-knopf:hover { background: var(--wahl); }
 .willkommen { gap: 1.6rem; padding-top: 1rem; }
@@ -781,3 +782,81 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 .rang-zahl { display: grid; justify-items: end; line-height: 1.15; }
 .rang-zahl small { font-size: .7rem; color: var(--grau); }
 @media (max-width: 560px) { .rangliste li { grid-template-columns: 2rem minmax(0, 1fr) 4rem 4rem; } .rangliste .rang-zahl:last-child { display: none; } }
+
+/* ======================= Themen ======================= */
+.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip { padding: .45em .9em; min-height: 2.4rem; border: 1.5px solid var(--linie-stark); border-radius: 999px; background: var(--blatt); color: var(--tinte); font-weight: 600; font-size: .9rem; transition: transform .15s; }
+.chip.ist-aktiv { background: var(--koenigsblau); border-color: var(--koenigsblau); color: var(--auf-blau); transform: translateY(-1px); }
+.themen-liste { display: grid; gap: 1.4rem; }
+.themen-fach h2 { display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+.themen-fach .geteilt-punkt { height: 1.4rem; }
+.themen-stufe { margin-bottom: .8rem; }
+.themen-stufe h3 { font-size: .85rem; color: var(--grau); margin: .2rem 0 .35rem; }
+.themen-stufe ul { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; overflow: hidden; }
+.themen-stufe li + li { border-top: 1px solid var(--linie); }
+.themen-zeile { display: flex; justify-content: space-between; align-items: center; gap: 1rem; width: 100%; padding: .7rem 1rem; border: 0; background: transparent; color: var(--tinte); text-align: left; font-weight: 600; }
+.themen-zeile .icon { transform: rotate(180deg); color: var(--grau); flex: none; transition: transform .2s; }
+.themen-zeile:hover { background: var(--wahl); }
+.themen-zeile:hover .icon { transform: rotate(180deg) translateX(-3px); }
+.themen-zeile.ist-offen { background: var(--wahl); box-shadow: inset 4px 0 0 var(--koenigsblau); }
+.thema-detail { padding: 0 1.2rem 1.2rem; display: grid; gap: .8rem; animation: hinlegen .4s cubic-bezier(.2,.9,.3,1.2); }
+.thema-kopfzeile { height: 2.2rem; display: flex; justify-content: space-between; align-items: center; }
+.thema-titel { font-size: 1.5rem; line-height: 1.3; padding-top: .3rem; }
+.thema-text { font-size: 1.05rem; line-height: 1.65; }
+.thema-beispiel { background: rgba(255,255,255,.75); border: 1.5px dashed rgba(27,42,92,.4); border-radius: 8px; padding: .7rem .9rem; }
+.thema-beispiel strong { display: block; font-size: .85rem; color: var(--grau); margin-bottom: .2rem; }
+.thema-merke { font-weight: 600; }
+
+/* ======================= Erfolge ======================= */
+.erfolge-inhalt { display: grid; gap: 1.2rem; margin-top: 1rem; }
+.level { display: flex; gap: 1.3rem; align-items: center; flex-wrap: wrap; }
+.level > * + * { margin-top: 0; }
+.level-ring { --anteil: 0; width: 6.5rem; height: 6.5rem; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--koenigsblau) calc(var(--anteil) * 1%), var(--linie) 0); position: relative; animation: plopp .6s cubic-bezier(.3,1.8,.5,1); }
+.level-ring::before { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--blatt); }
+.level-ring span { position: relative; font-size: 2.4rem; color: var(--koenigsblau); line-height: 1; }
+.level-text { flex: 1 1 14rem; display: grid; gap: .35rem; }
+.level-titel { font-size: 1.25rem; font-weight: 700; }
+.abzeichen-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .7rem; }
+.abzeichen { display: grid; justify-items: center; text-align: center; gap: .15rem; padding: .9rem .6rem; background: var(--blatt); border: 1.5px dashed var(--linie-stark); border-radius: 12px; opacity: .55; filter: grayscale(1); }
+.abzeichen.ist-da { opacity: 1; filter: none; border-style: solid; border-color: var(--tinte); box-shadow: 3px 3px 0 var(--schatten); animation: hinlegen .4s backwards; }
+.abzeichen-icon { font-size: 2.2rem; line-height: 1.2; }
+.abzeichen.ist-da .abzeichen-icon { animation: plopp .5s cubic-bezier(.3,1.8,.5,1); }
+.abzeichen strong { font-size: .95rem; }
+.abzeichen small { font-size: .78rem; color: var(--grau); line-height: 1.3; }
+.abzeichen-datum { margin-top: .2rem; font-weight: 600; }
+.level-leiste { display: flex; align-items: center; gap: .8rem; padding: .6rem .9rem; background: var(--blatt); border: 1.5px solid var(--tinte); border-radius: 12px; color: var(--tinte); text-decoration: none; box-shadow: 3px 3px 0 var(--schatten); transition: transform .15s; }
+.level-leiste:hover { transform: translate(-1px, -2px); }
+.level-leiste > .icon { color: var(--koenigsblau); flex: none; }
+.level-mini { width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center; background: var(--koenigsblau); color: var(--auf-blau); font-size: 1.3rem; flex: none; }
+.level-leiste-text { flex: 1; display: grid; gap: .3rem; min-width: 0; }
+.rueckblick { display: grid; grid-auto-flow: column; grid-auto-columns: min(82%, 19rem); gap: 1rem; overflow-x: auto; scroll-snap-type: x mandatory; padding: .3rem .2rem 1.2rem; }
+.rb-karte { scroll-snap-align: start; min-height: 17rem; padding: 1.3rem; border-radius: 18px; border: 2px solid #1b2a5c; color: #1b2a5c; display: flex; flex-direction: column; justify-content: center; gap: .4rem; box-shadow: 5px 5px 0 rgba(27,42,92,.25); animation: hinlegen .5s backwards; }
+.rb-karte small { font-weight: 700; font-size: .85rem; opacity: .75; }
+.rb-zahl { font-size: 3.4rem; line-height: 1.3; color: #2440b3; }
+.rb-mittel { font-size: 1.8rem; }
+.rb-klein { font-size: .9rem; opacity: .85; }
+.rb-icons { font-size: 2.4rem; }
+.rb-spruch { color: #c4273c; font-size: 1.2rem; line-height: 1.8; margin-top: .4rem; }
+.rb-blau { background: #d9e9fb; } .rb-gelb { background: #fff3b8; } .rb-gruen { background: #dbf2df; } .rb-rosa { background: #ffdfe4; } .rb-lila { background: #e8defa; } .rb-weiss { background: #fff; }
+
+/* ======================= Duell ======================= */
+.duell-start { gap: 1rem; }
+.duell-start select { margin: .3rem 0 .8rem; }
+.duell-code-eingabe { width: 8rem !important; font-size: 1.4rem !important; letter-spacing: .3em; text-align: center; font-weight: 700; }
+.duell-lobby, .duell-countdown { text-align: center; display: grid; justify-items: center; gap: .5rem; }
+.duell-code { font-size: 3.4rem; font-weight: 700; letter-spacing: .2em; color: var(--koenigsblau); font-variant-numeric: tabular-nums; animation: plopp .5s; }
+.duell-spieler { display: flex; flex-wrap: wrap; gap: .4rem; justify-content: center; }
+.duell-spieler li { padding: .3em .8em; border-radius: 999px; background: var(--wahl); font-weight: 600; animation: plopp .35s; }
+.duell-zeit { height: 6px; border-radius: 3px; background: var(--linie); overflow: hidden; position: relative; }
+.duell-zeit::after { content: ""; position: absolute; inset: 0; transform-origin: left; transform: scaleX(var(--rest)); background: var(--koenigsblau); transition: transform .7s linear; }
+.knopf-option.ist-gewaehlt { border-color: var(--koenigsblau); box-shadow: inset 0 0 0 2px var(--koenigsblau); opacity: 1; }
+.duell-ergebnis { font-size: 1.2rem; font-weight: 700; margin-bottom: .6rem; }
+.duell-rang { display: grid; gap: .35rem; }
+.duell-rang li { display: flex; align-items: center; gap: .6rem; padding: .5rem .8rem; background: var(--blatt); border: 1px solid var(--linie); border-radius: 8px; }
+.duell-rang li.ist-ich { border-color: var(--koenigsblau); box-shadow: inset 0 0 0 1px var(--koenigsblau); }
+.duell-rang .rang-name { flex: 1; }
+.duell-plus { color: var(--gruen); font-weight: 700; font-size: .9rem; animation: plopp .4s; }
+.reiter { overflow-x: auto; scrollbar-width: none; }
+.reiter::-webkit-scrollbar { display: none; }
+.reiter-knopf { white-space: nowrap; flex: none; }
+.seite { overflow-x: clip; }

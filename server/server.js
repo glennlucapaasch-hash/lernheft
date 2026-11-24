@@ -176,6 +176,12 @@ async function api(req, res, pfad) {
   const gm = /^\/api\/geteilt\/([\w-]+)$/.exec(pfad);
   if (gm && methode === 'GET') { const g = extra.geteiltHolen(gm[1]); return g ? senden(res, 200, g) : fehler(res, 404, 'Gibt es nicht mehr.'); }
   if (gm && methode === 'DELETE') { extra.geteiltLoeschen(gm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
+  if (pfad === '/api/duell' && methode === 'POST') return senden(res, 200, extra.duellAnlegen(konto.name, await koerper(req, 200000)));
+  const dm = /^\/api\/duell\/(\d{4})(\/(beitreten|start|antwort))?$/.exec(pfad);
+  if (dm && methode === 'GET') return senden(res, 200, extra.duellStand(dm[1], konto.name));
+  if (dm && dm[3] === 'beitreten' && methode === 'POST') return senden(res, 200, extra.duellBeitreten(dm[1], konto.name));
+  if (dm && dm[3] === 'start' && methode === 'POST') return senden(res, 200, extra.duellStarten(dm[1], konto.name));
+  if (dm && dm[3] === 'antwort' && methode === 'POST') return senden(res, 200, extra.duellAntworten(dm[1], konto.name, await koerper(req, 5000)));
   if (pfad === '/api/rangliste' && methode === 'GET') return senden(res, 200, extra.rangliste());
   if (pfad === '/api/push' && methode === 'GET') return senden(res, 200, { schluessel: extra.vapidOeffentlich(), abo: extra.aboLesen(konto.name) });
   if (pfad === '/api/push' && methode === 'POST') return senden(res, 200, { abo: extra.aboSetzen(konto.name, await koerper(req, 20000)) });

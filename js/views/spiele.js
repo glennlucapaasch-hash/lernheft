@@ -4,6 +4,7 @@ import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { shuffle, mcOptionen } from '../exam.js';
 import { istServerModus } from '../ai.js';
+import { duell } from './duell.js';
 
 const ui = { tab: 'memory', deckId: '', memory: null, blitz: null, rang: null, rangLaden: false };
 
@@ -44,7 +45,7 @@ function memory(ctx) {
       if (a.id === b.id) {
         m.gefunden.add(a.id);
         m.offen = [];
-        if (m.gefunden.size * 2 === m.teile.length) m.ende = Date.now();
+        if (m.gefunden.size * 2 === m.teile.length) { m.ende = Date.now(); store.getState().spiele.memory = (store.getState().spiele.memory || 0) + 1; store.save(); }
       } else {
         m.sperre = true;
         setTimeout(() => { m.offen = []; m.sperre = false; if (location.hash === '#spiele') ctx.refresh(); }, 1000);
@@ -165,15 +166,12 @@ function rangliste(ctx) {
 const TABS = [
   { id: 'memory', name: 'Memory', view: memory },
   { id: 'blitz', name: 'Blitzrunde', view: blitz },
+  { id: 'duell', name: 'Duell', view: duell },
   { id: 'rang', name: 'Rangliste', view: rangliste },
 ];
 
 export function spiele(ctx) {
-  if (!store.getState().cards.length) {
-    return h('div', { class: 'seite' }, h('h1', { class: 'handschrift' }, 'Spiele'),
-      h('div', { class: 'blatt leer' }, h('p', null, 'Spiele brauchen Karteikarten. Leg zuerst einen Stapel an oder scanne eine Seite.'),
-        h('a', { class: 'knopf knopf-haupt', href: '#karten' }, 'Zu den Karteikarten')));
-  }
+  if (!store.getState().cards.length && ui.tab !== 'rang') ui.tab = 'duell';
   if (ctx.optionen?.neu) { ui.rang = null; }
   const aktiv = TABS.find((t) => t.id === ui.tab) || TABS[0];
   return h('div', { class: 'seite' },

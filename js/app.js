@@ -13,6 +13,9 @@ import { einstellungen } from './views/einstellungen.js';
 import { chat } from './views/chat.js';
 import { notizen } from './views/notizen.js';
 import { spiele } from './views/spiele.js';
+import { themen } from './views/themen.js';
+import { erfolge } from './views/erfolge.js';
+import { neueAbzeichen } from './erfolge.js';
 
 const BEREICHE = [
   { id: 'start', name: 'Start', icon: 'heft', view: start },
@@ -21,6 +24,8 @@ const BEREICHE = [
   { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen },
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
+  { id: 'themen', name: 'Themen', icon: 'buch', view: themen, neben: true },
+  { id: 'erfolge', name: 'Erfolge', icon: 'pokal', view: erfolge, neben: true },
   { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, neben: true },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
   { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, neben: true, nurAdmin: true },
@@ -146,6 +151,10 @@ function zeichnen() {
   ctx.optionen = null;
   inhalt.classList.add('auftritt');
   main.replaceChildren(inhalt);
+  // Neue Abzeichen feiern
+  try {
+    for (const a of neueAbzeichen()) toast(`${a.icon} Neues Abzeichen: ${a.name}!`);
+  } catch { /* egal */ }
   navZeichnen(aktiv.id);
   // Chat-Knopf überall, außer im Chat selbst und während einer Abfrage
   blase.hidden = aktiv.id === 'chat' || Boolean(ueberlagerung);
