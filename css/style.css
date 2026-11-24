@@ -278,7 +278,8 @@ progress::-moz-progress-bar { background: var(--koenigsblau); }
 .heute-stand { display: grid; gap: 0.7rem 2rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); align-items: end; padding-top: 0.9rem; border-top: 1px solid var(--linie); }
 .ziel label { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
 .serie { font-size: 0.9rem; font-weight: 700; }
-.schnell { display: grid; grid-template-columns: repeat(auto-fit, minmax(4.4rem, 1fr)); gap: 0.5rem; }
+.schnell { display: grid; grid-template-columns: repeat(auto-fit, minmax(3.9rem, 1fr)); gap: 0.4rem; }
+.schnell-knopf { font-size: .8rem; padding-inline: .1rem; }
 .schnell-knopf { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.8rem 0.3rem; border: 1.5px solid var(--tinte); border-radius: 8px; background: var(--blatt); color: var(--tinte); text-decoration: none; font-weight: 600; font-size: 0.88rem; text-align: center; line-height: 1.2; }
 .schnell-knopf:hover { background: var(--wahl); }
 .willkommen { gap: 1.6rem; padding-top: 1rem; }
