@@ -9,7 +9,7 @@ export function h(tag, props, ...kinder) {
       if (v == null || v === false) continue;
       if (k === 'class') el.className = v;
       else if (k === 'dataset') Object.assign(el.dataset, v);
-      else if (k === 'style') Object.assign(el.style, v);
+      else if (k === 'style') { if (typeof v === 'string') el.setAttribute('style', v); else Object.assign(el.style, v); }
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
       else if (DIREKT.has(k)) el[k] = v;
       else el.setAttribute(k, v === true ? '' : v);
@@ -47,6 +47,12 @@ const ICONS = {
   chat: '<path d="M4.5 5.5h15a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-4.5 3.500v-3.500h-1a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1z"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="2.400"/>',
   senden: '<path d="M4 12l16-7.500-6 16-2.500-6.500z"/><path d="M11.500 14L20 4.500"/>',
   schild: '<path d="M12 3l7.500 3v5.500c0 4.500-3.200 8-7.500 9.500C7.700 19.500 4.500 16 4.500 11.500V6z"/><path d="M9 12l2 2 4-4.500"/>',
+  marker: '<path d="M14.500 4.500l5 5-8 8H6.500v-5z"/><path d="M6.500 17.500L4 20h5"/><path d="M12 7l5 5"/>',
+  radierer: '<path d="M8.500 19.500h11"/><path d="M4.700 14.800l9.500-9.500a1.500 1.500 0 0 1 2.100 0l3.400 3.400a1.500 1.500 0 0 1 0 2.100l-8.200 8.200H8.500l-3.800-3.800a.9.9 0 0 1 0-1.300z"/><path d="M9.500 10l5.500 5.500"/>',
+  rueck: '<path d="M9 7L4.500 11.500 9 16"/><path d="M5 11.500h9a5 5 0 0 1 0 10h-2"/>',
+  vor: '<path d="M15 7l4.500 4.500L15 16"/><path d="M19 11.500h-9a5 5 0 0 0 0 10h2"/>',
+  tausch: '<path d="M7 4.500L3.500 8 7 11.500M3.500 8H17"/><path d="M17 12.500l3.500 3.500-3.500 3.500M20.500 16H7"/>',
+  mehr: '<path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/>',
   uhr: '<circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/>',
 };
 

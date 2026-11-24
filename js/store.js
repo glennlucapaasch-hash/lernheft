@@ -27,6 +27,7 @@ function leer() {
     exams: [],
     rechner: { verlauf: [], grad: true },
     chat: [],
+    notizen: [],
   };
 }
 
@@ -59,6 +60,7 @@ function uebernehmen(daten) {
     log: d.log && typeof d.log === 'object' ? d.log : {},
     exams: Array.isArray(d.exams) ? d.exams : [],
     rechner: { ...basis.rechner, ...(d.rechner || {}) },
+    notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
     chat: Array.isArray(d.chat) ? d.chat.filter((m) => m && typeof m.text === 'string').slice(-40) : [],
   };
   for (const dk of state.decks) if (!FAECHER[dk.fach]) dk.fach = 'sonstiges';

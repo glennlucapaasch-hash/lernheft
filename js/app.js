@@ -11,10 +11,12 @@ import { klausur } from './views/klausur.js';
 import { statistik } from './views/statistik.js';
 import { einstellungen } from './views/einstellungen.js';
 import { chat } from './views/chat.js';
+import { notizen } from './views/notizen.js';
 
 const BEREICHE = [
   { id: 'start', name: 'Start', icon: 'heft', view: start },
   { id: 'karten', name: 'Karten', icon: 'karten', view: karten },
+  { id: 'notizen', name: 'Notizen', icon: 'stift', view: notizen },
   { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen },
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
