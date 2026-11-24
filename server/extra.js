@@ -351,8 +351,44 @@ export function adminUebersicht() {
   return konten.map((k) => {
     const d = db.datenLesen(k.name);
     const x = r.find((y) => y.name === k.name) || {};
-    return { name: k.name, woche: x.woche || 0, serie: x.serie || 0, karten: (d.cards || []).length, stapel: (d.decks || []).length, kiMonat: k.kiMonat, letzterLogin: k.letzterLogin };
+    const log = d.log || {};
+    const tage30 = letzteTage(30);
+    const a30 = tage30.reduce((s, t) => s + (log[t]?.abfragen || 0), 0);
+    const r30 = tage30.reduce((s, t) => s + (log[t]?.richtig || 0), 0);
+    return { name: k.name, admin: Boolean(k.admin), woche: x.woche || 0, serie: x.serie || 0, monat: a30, quote: a30 ? Math.round((r30 / a30) * 100) : null, lerntage: tage30.filter((t) => log[t]?.abfragen).length, karten: (d.cards || []).length, stapel: (d.decks || []).length, kiMonat: k.kiMonat, letzterLogin: k.letzterLogin };
   }).sort((a, b) => b.woche - a.woche);
+}
+
+function letzteTage(n) {
+  const p = (z) => String(z).padStart(2, '0');
+  return Array.from({ length: n }, (_, i) => { const d = new Date(Date.now() - i * 864e5); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; });
+}
+
+// Lernstatistik einer Person für den Admin – nur Zahlen, keine Inhalte (keine Karten, Notizen, Chats, Noten)
+export function adminStatistik(name) {
+  const k = db.kontenListe().find((x) => x.name === name);
+  if (!k) throw fehlerMit(404, 'Dieses Konto gibt es nicht.');
+  const d = db.datenLesen(name);
+  const log = d.log || {};
+  const karten = d.cards || [];
+  const stufe = (s) => (!s?.seen ? 'neu' : s.interval < 7 ? 'lernen' : s.interval < 21 ? 'gefestigt' : 'sicher');
+  const stufen = { neu: 0, lernen: 0, gefestigt: 0, sicher: 0 };
+  for (const c of karten) stufen[stufe(c.srs)] += 1;
+  const jetzt = Date.now();
+  const tage = letzteTage(30).reverse().map((t) => ({ tag: t, abfragen: log[t]?.abfragen || 0, richtig: log[t]?.richtig || 0 }));
+  const gesamt = Object.values(log).reduce((s, t) => s + (t?.abfragen || 0), 0);
+  const richtigGesamt = Object.values(log).reduce((s, t) => s + (t?.richtig || 0), 0);
+  const stapel = (d.decks || []).map((s) => {
+    const ks = karten.filter((c) => c.deckId === s.id);
+    return { name: String(s.name).slice(0, 60), fach: s.fach, karten: ks.length, faellig: ks.filter((c) => (c.srs?.due || 0) <= jetzt).length, sicher: ks.filter((c) => stufe(c.srs) === 'sicher').length };
+  }).sort((a, b) => b.karten - a.karten);
+  const klausuren = (d.exams || []).filter((e) => e && Number.isFinite(e.prozent ?? e.ergebnis?.prozent)).map((e) => ({ titel: String(e.titel || 'Probeklausur').slice(0, 60), note: e.note || null, prozent: Math.round(e.prozent ?? e.ergebnis.prozent) })).slice(-10);
+  const x = rangliste().find((y) => y.name === name) || {};
+  return {
+    name, letzterLogin: k.letzterLogin, angelegt: k.angelegt, kiMonat: k.kiMonat, serie: x.serie || 0,
+    gesamt, quoteGesamt: gesamt ? Math.round((richtigGesamt / gesamt) * 100) : null, lerntageGesamt: Object.values(log).filter((t) => t?.abfragen).length,
+    tage, stufen, stapel, notizen: (d.notizen || []).length, klausuren, spiele: d.spiele || {}, abenteuerSterne: Object.values(d.abenteuer?.sterne || {}).reduce((a, b) => a + b, 0),
+  };
 }
 
 // ---------- Einladungslinks ----------

@@ -1,6 +1,6 @@
 // Macht die App offline nutzbar: Die App-Dateien werden auf dem Gerät zwischengespeichert.
 // Anfragen an die KI gehen immer direkt ins Netz und werden nie gespeichert.
-const VERSION = 'lernheft-28';
+const VERSION = 'lernheft-29';
 const DATEIEN = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/dom.js', 'js/store.js', 'js/srs.js', 'js/check.js', 'js/calc.js', 'js/exam.js', 'js/ai.js',

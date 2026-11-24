@@ -273,6 +273,8 @@ async function api(req, res, pfad) {
     }
     if (pfad === '/api/verwaltung/gruppe' && methode === 'PUT') return senden(res, 200, extra.gruppeSetzen(await koerper(req, 10000)));
     if (pfad === '/api/verwaltung/uebersicht' && methode === 'GET') return senden(res, 200, extra.adminUebersicht());
+    const sm = /^\/api\/verwaltung\/statistik\/([\w.-]+)$/.exec(pfad);
+    if (sm && methode === 'GET') return senden(res, 200, extra.adminStatistik(sm[1]));
     const em = /^\/api\/verwaltung\/konten\/([a-z0-9._-]+)\/einladung$/.exec(pfad);
     if (em && methode === 'POST') {
       if (!db.vorhanden(em[1])) return fehler(res, 404, 'Diesen Namen gibt es nicht.');

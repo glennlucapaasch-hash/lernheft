@@ -1420,3 +1420,18 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
 }
 .lr-hilfe { display: grid; gap: .5rem; padding-left: 1.2rem; list-style: disc; line-height: 1.45; }
 .lr-ton { position: sticky; top: .5rem; z-index: 5; justify-self: center; animation: livePuls 1.2s infinite; }
+.admin-statistik tr.klickbar { cursor: pointer; }
+.admin-statistik tr.klickbar:hover { background: var(--wahl); }
+.knopf-link { border: 0; background: none; padding: 0; color: var(--koenigsblau); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.admin-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr)); gap: .5rem; }
+.admin-kachel { display: grid; padding: .6rem .7rem; border-radius: 10px; background: var(--wahl); }
+.admin-kachel strong { font-size: 1.35rem; }
+.admin-kachel small { color: var(--grau); }
+.admin-balken { display: flex; align-items: flex-end; gap: 2px; height: 7rem; padding: .3rem; border-bottom: 1px solid var(--linie); }
+.admin-balken > div { flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.admin-balken span { position: relative; display: block; width: 100%; min-height: 2px; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--koenigsblau) 40%, transparent); overflow: hidden; animation: balkenWachsen .5s backwards; transform-origin: bottom; }
+.admin-balken i { position: absolute; left: 0; right: 0; bottom: 0; background: var(--koenigsblau); }
+.admin-stufen { display: flex; height: 14px; border-radius: 7px; overflow: hidden; gap: 2px; }
+.admin-stufen .stufe-neu { background: var(--stufe-neu); } .admin-stufen .stufe-lernen { background: var(--stufe-lernen); }
+.admin-stufen .stufe-gefestigt { background: var(--stufe-gefestigt); } .admin-stufen .stufe-sicher { background: var(--stufe-sicher); }
+.admin-liste { display: grid; gap: .3rem; padding-left: 1.2rem; list-style: disc; }

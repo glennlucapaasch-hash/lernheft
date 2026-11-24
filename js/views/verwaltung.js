@@ -1,5 +1,5 @@
 import { h, icon, toast, nachfragen, modal, feld, datumKurz } from '../dom.js';
-import { MODELLE } from '../store.js';
+import { MODELLE, FAECHER } from '../store.js';
 
 const ui = { daten: null, laden: false, fehler: '' };
 
@@ -134,16 +134,46 @@ function kontaktBereich(ctx) {
     h('div', { class: 'reihe' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Speichern'), h('a', { class: 'knopf', href: '#datenschutz' }, 'Datenschutzerklärung ansehen')));
 }
 
+async function statistikZeigen(name) {
+  let s;
+  try { s = await api(`/api/verwaltung/statistik/${encodeURIComponent(name)}`); } catch (e) { toast(e.message, 'fehler'); return; }
+  const max = Math.max(1, ...s.tage.map((t) => t.abfragen));
+  const kartenGesamt = Object.values(s.stufen).reduce((a, b) => a + b, 0) || 1;
+  const kachel = (zahl, text) => h('div', { class: 'admin-kachel' }, h('strong', null, zahl), h('small', null, text));
+  modal(`Statistik: ${s.name}`, [
+    h('div', { class: 'admin-kacheln' },
+      kachel(String(s.gesamt), 'Abfragen gesamt'), kachel(s.quoteGesamt === null ? '–' : `${s.quoteGesamt} %`, 'richtig'),
+      kachel(s.serie ? `🔥 ${s.serie}` : '0', 'Tage Serie'), kachel(String(s.lerntageGesamt), 'Lerntage gesamt'),
+      kachel(String(s.notizen), 'Notizen'), kachel(String(s.kiMonat), 'KI-Anfragen Monat')),
+    h('h3', null, 'Abfragen der letzten 30 Tage'),
+    h('div', { class: 'admin-balken', role: 'img', 'aria-label': s.tage.map((t) => `${t.tag}: ${t.abfragen}`).join(', ') }, s.tage.map((t) => h('div', { title: `${t.tag.slice(8)}.${t.tag.slice(5, 7)}.: ${t.abfragen} Abfragen, ${t.richtig} richtig` },
+      h('span', { style: `height:${(t.abfragen / max) * 100}%` }, h('i', { style: `height:${t.abfragen ? (t.richtig / t.abfragen) * 100 : 0}%` }))))),
+    h('p', { class: 'hinweis' }, 'Dunkler Teil = richtig beantwortet. Fahr über einen Balken für Details.'),
+    h('h3', null, 'Lernstand der Karten'),
+    h('div', { class: 'admin-stufen' }, Object.entries(s.stufen).map(([k, v]) => h('span', { class: `stufe-${k}`, style: `flex:${v || 0.001}`, title: `${k}: ${v}` }))),
+    h('p', { class: 'hinweis' }, `Neu ${s.stufen.neu} · Lernen ${s.stufen.lernen} · Gefestigt ${s.stufen.gefestigt} · Sicher ${s.stufen.sicher} (${Math.round((s.stufen.sicher / kartenGesamt) * 100)} % sicher)`),
+    s.stapel.length > 0 && [h('h3', null, 'Stapel'), h('div', { class: 'tabelle-rollen' }, h('table', { class: 'konten-tabelle' },
+      h('thead', null, h('tr', null, ['Stapel', 'Fach', 'Karten', 'Fällig', 'Sicher'].map((t) => h('th', { scope: 'col' }, t)))),
+      h('tbody', null, s.stapel.map((d) => h('tr', null, h('th', { scope: 'row' }, d.name), h('td', null, FAECHER[d.fach]?.name || d.fach), h('td', null, String(d.karten)), h('td', null, String(d.faellig)), h('td', null, String(d.sicher)))))))],
+    s.klausuren.length > 0 && [h('h3', null, 'Probeklausuren'), h('ul', { class: 'admin-liste' }, s.klausuren.map((k) => h('li', null, `${k.titel}: ${k.prozent} %${k.note ? ` (Note ${k.note})` : ''}`)))],
+    h('h3', null, 'Spiele'),
+    h('p', null, `Live-Quiz: ${s.spiele.duelle || 0} gespielt, ${s.spiele.duellSiege || 0} gewonnen · Abenteuer: ${s.abenteuerSterne} ★`),
+    h('p', { class: 'hinweis' }, `Konto seit ${s.angelegt ? datumKurz(s.angelegt) : '–'}, zuletzt angemeldet ${s.letzterLogin ? datumKurz(s.letzterLogin) : 'nie'}. Inhalte wie Karten-Texte, Notizen, Chats und Noten bleiben privat.`),
+  ]);
+}
+
 function gruppeBereich(ctx) {
   const text = h('textarea', { rows: '3', maxlength: '500', placeholder: 'z. B. Neue Vokabeln für Unit 4 sind geteilt! 🎉' });
   const ziel = h('input', { type: 'number', min: '50', max: '100000', step: '50', placeholder: '1000' });
   const tabelle = h('div', { class: 'tabelle-rollen' }, h('p', { class: 'hinweis' }, 'Lade …'));
-  api('/api/verwaltung/uebersicht').then((l) => tabelle.replaceChildren(h('table', { class: 'konten-tabelle' },
-    h('thead', null, h('tr', null, ['Name', 'Abfragen 7 T.', 'Serie', 'Karten', 'KI Monat'].map((t) => h('th', { scope: 'col' }, t)))),
-    h('tbody', null, l.map((k) => h('tr', null, h('th', { scope: 'row' }, k.name), h('td', null, String(k.woche)), h('td', null, String(k.serie)), h('td', null, String(k.karten)), h('td', null, String(k.kiMonat)))))))).catch(() => {});
+  api('/api/verwaltung/uebersicht').then((l) => tabelle.replaceChildren(h('table', { class: 'konten-tabelle admin-statistik' },
+    h('thead', null, h('tr', null, ['Name', '7 Tage', '30 Tage', 'Richtig', 'Lerntage', 'Serie', 'Karten', 'KI Monat', 'Zuletzt da'].map((t) => h('th', { scope: 'col' }, t)))),
+    h('tbody', null, l.map((k) => h('tr', { class: 'klickbar', tabindex: '0', onclick: () => statistikZeigen(k.name), onkeydown: (e) => { if (e.key === 'Enter') statistikZeigen(k.name); } },
+      h('th', { scope: 'row' }, h('button', { class: 'knopf-link' }, k.name)), h('td', null, String(k.woche)), h('td', null, String(k.monat)), h('td', null, k.quote === null ? '–' : `${k.quote} %`),
+      h('td', null, `${k.lerntage}/30`), h('td', null, k.serie ? `🔥 ${k.serie}` : '0'), h('td', null, String(k.karten)), h('td', null, String(k.kiMonat)), h('td', null, k.letzterLogin ? datumKurz(k.letzterLogin) : 'nie'))))))).catch(() => {});
   return h('section', { class: 'blatt' },
     h('h2', null, 'Gruppe'),
-    h('h3', null, 'Aktivität (nur Zahlen, keine Inhalte)'), tabelle,
+    h('h3', null, 'Lernstatistik aller Personen'), h('p', { class: 'hinweis' }, 'Tipp auf einen Namen für Details.'), tabelle,
     h('h3', null, 'Ankündigung an alle'),
     h('form', { onsubmit: async (e) => { e.preventDefault(); try { await api('/api/verwaltung/gruppe', { method: 'PUT', body: { ankuendigung: text.value.trim() || null } }); toast(text.value.trim() ? 'Ankündigung veröffentlicht.' : 'Ankündigung entfernt.'); text.value = ''; } catch (err) { toast(err.message, 'fehler'); } } },
       text, h('div', { class: 'reihe' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Veröffentlichen'), h('span', { class: 'hinweis' }, 'Leer lassen und veröffentlichen = Ankündigung entfernen.'))),

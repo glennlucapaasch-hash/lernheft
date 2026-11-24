@@ -46,7 +46,7 @@ export function datenschutzSeite(neu = () => {}) {
       h('p', { class: 'hinweis' }, 'Tipp: Fotografier keine Seiten mit Namen, Adressen oder anderen persönlichen Angaben und schreib so etwas nicht in den Chat.')),
 
     abschnitt('Was nicht passiert',
-      liste('Keine Werbung, kein Verkauf von Daten.', 'Keine Verbindung zu Google: Die Schriften liegen auf unserem eigenen Server.', 'Andere Nutzer sehen deine Karten, Notizen und Chats nicht – nur das, was du selbst schickst, und in der Rangliste deinen Namen mit Lernzahlen der letzten 7 Tage.', 'Der Admin sieht in der Verwaltung, wer wann zuletzt da war und wie viele KI-Anfragen gestellt wurden – nicht deine Inhalte.')),
+      liste('Keine Werbung, kein Verkauf von Daten.', 'Keine Verbindung zu Google: Die Schriften liegen auf unserem eigenen Server.', 'Andere Nutzer sehen deine Karten, Notizen und Chats nicht – nur das, was du selbst schickst, und in der Rangliste deinen Namen mit Lernzahlen der letzten 7 Tage.', 'Der Admin (Glenn) sieht in der Verwaltung deine Lernstatistik: wann du zuletzt da warst, wie viel und wie gut du lernst, deine Stapelnamen mit Kartenzahlen, Probeklausur-Ergebnisse und KI-Anfragen. Nicht sichtbar für ihn: die Texte deiner Karten, deine Notizen, Chats und Noten. Dein Passwort kennt niemand – auch der Admin nicht.')),
 
     abschnitt('Deine Rechte',
       h('p', null, 'Du kannst jederzeit Auskunft verlangen, deine Daten herunterladen (Einstellungen → Sicherung erstellen), sie berichtigen oder löschen lassen (Einstellungen → Konto löschen). Außerdem kannst du dich bei einer Datenschutz-Aufsichtsbehörde beschweren, in Hamburg beim Hamburgischen Beauftragten für Datenschutz und Informationsfreiheit.'),
