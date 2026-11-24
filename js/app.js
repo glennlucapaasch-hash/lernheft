@@ -138,14 +138,9 @@ function zeichnen() {
     try { fn(); } catch { /* egal */ }
   }
   const aktiv = bereich();
-  // Erster Start: Solange es noch keine Karten gibt, geht es zuerst zum Scannen.
-  // Einstellungen und Verwaltung bleiben erreichbar (dort wird z. B. der KI-Schlüssel hinterlegt).
-  const erstScan = !ueberlagerung && !store.getState().decks.length && !['einstellungen', 'verwaltung'].includes(aktiv.id);
-  ctx.erstScan = erstScan;
-  document.body.classList.toggle('erst-scan', erstScan);
   let inhalt;
   try {
-    inhalt = erstScan ? scannen(ctx) : (ueberlagerung || aktiv.view)(ctx);
+    inhalt = (ueberlagerung || aktiv.view)(ctx);
   } catch (e) {
     console.error(e);
     inhalt = h('div', { class: 'blatt' },

@@ -67,16 +67,8 @@ function startSchritt(ctx) {
     if (location.hash === '#scannen' && ui.schritt === 'start') ctx.refresh();
   });
 
-  const erst = ctx.erstScan;
-  return h('div', { class: `seite ${erst ? 'erst-scan-seite' : ''}` },
-    erst
-      ? h('header', { class: 'erst-kopf' },
-          h('div', { class: 'erst-symbol', 'aria-hidden': 'true' }, icon('scan', 40)),
-          h('h1', { class: 'handschrift' }, 'Willkommen im Lernheft!'),
-          h('p', { class: 'einleitung' }, 'Bevor es losgeht: Fotografier eine Seite aus deinem Schulbuch – Vokabeln, Mathe-Aufgaben oder einen Hefteintrag. Daraus entstehen deine ersten Karteikarten.'),
-          h('ol', { class: 'erst-schritte' },
-            h('li', null, 'Art auswählen'), h('li', null, 'Foto machen'), h('li', null, 'Karten prüfen und loslernen')))
-      : h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Seite scannen')),
+  return h('div', { class: 'seite' },
+    h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Seite scannen')),
     ui.ki === null && h('div', { class: 'blatt meldung' },
       h('p', null, h('strong', null, 'Zum Erkennen der Fotos braucht die App einen KI-Schlüssel.'), ' Du hinterlegst ihn einmal in den Einstellungen. Ohne Schlüssel kannst du Vokabellisten von Hand einfügen.'),
       h('div', { class: 'reihe' },
@@ -99,13 +91,7 @@ function startSchritt(ctx) {
         h('button', { class: 'knopf', disabled: ui.fotos.length >= MAX_FOTOS, onclick: () => galerie.click() }, icon('bild', 18), 'Bilder auswählen')),
       h('p', { class: 'hinweis' }, `Buch flach hinlegen, gutes Licht, die ganze Seite im Bild. Bis zu ${MAX_FOTOS} Fotos auf einmal.`),
 
-      h('button', { class: 'knopf knopf-haupt knopf-gross', disabled: !ui.fotos.length || !ui.ki, onclick: () => erkennen(ctx) }, 'Karten erstellen')),
-    erst && h('details', { class: 'erst-alternativ' },
-      h('summary', null, 'Kein Buch zur Hand?'),
-      h('p', { class: 'hinweis' }, 'Du kannst auch mit einer Wortliste oder mit Beispielkarten anfangen und später scannen.'),
-      h('div', { class: 'reihe' },
-        h('button', { class: 'knopf', onclick: () => { const d = store.addDeck('Meine ersten Vokabeln', 'englisch'); ctx.go('karten', { deckId: d.id }); } }, 'Wörter selbst eintippen'),
-        h('button', { class: 'knopf', onclick: () => { store.beispieleLaden(); toast('Zwei Beispielstapel angelegt.'); ctx.go('start'); } }, 'Mit Beispielen ausprobieren'))));
+      h('button', { class: 'knopf knopf-haupt knopf-gross', disabled: !ui.fotos.length || !ui.ki, onclick: () => erkennen(ctx) }, 'Karten erstellen')));
 }
 
 function ladeSchritt(ctx) {
