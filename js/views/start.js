@@ -1,6 +1,8 @@
 import { h, icon, datumLang, mehrzahl, toast, modal, feld, nachfragen } from '../dom.js';
 import { stufe } from '../srs.js';
 import { level, rueckblick } from '../erfolge.js';
+import { FAECHER as FAECHER_ALLE } from '../store.js';
+import { kiVerfuegbar, bildVorbereiten, klausurplanErkennen } from '../ai.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { lernenStarten } from './lernen.js';
@@ -42,8 +44,7 @@ function terminDialog(ctx, t) {
   const zu = modal(t ? 'Klassenarbeit bearbeiten' : 'Klassenarbeit eintragen', h('form', { onsubmit: (e) => {
     e.preventDefault();
     if (!titel.value.trim()) { titel.focus(); return; }
-    if (!gewaehlt.size) { toast('Wähle mindestens einen Stapel.', 'fehler'); return; }
-    store.terminSpeichern({ id: t?.id, titel: titel.value.trim(), datum: datum.value, deckIds: [...gewaehlt] });
+    store.terminSpeichern({ ...(t || {}), id: t?.id, titel: titel.value.trim(), datum: datum.value, deckIds: [...gewaehlt] });
     zu(); ctx.refresh();
   } },
     feld('Was?', titel),
@@ -58,12 +59,66 @@ function terminDialog(ctx, t) {
       h('button', { type: 'submit', class: 'knopf knopf-haupt' }, 'Speichern'))));
 }
 
+// ---------- Klausurplan scannen ----------
+const planUi = { laeuft: false };
+async function planScannen(ctx, dateien) {
+  if (!(await kiVerfuegbar())) { toast('Zum Einlesen braucht die App die KI.', 'fehler'); return; }
+  planUi.laeuft = true; ctx.refresh();
+  try {
+    const bilder = [];
+    for (const d of [...dateien].slice(0, 3)) bilder.push(await bildVorbereiten(d));
+    const termine = await klausurplanErkennen(bilder, Object.keys(FAECHER_ALLE));
+    planUi.laeuft = false; ctx.refresh();
+    if (!termine.length) { toast('Auf dem Foto habe ich keine Termine gefunden. Ist der Plan gut lesbar?', 'fehler'); return; }
+    planPruefen(ctx, termine);
+  } catch (e) {
+    planUi.laeuft = false; ctx.refresh();
+    toast(e.message || 'Das Einlesen hat nicht geklappt.', 'fehler');
+  }
+}
+
+function planPruefen(ctx, termine) {
+  const { decks } = store.getState();
+  const heute = new Date().toISOString().slice(0, 10);
+  const zeilen = termine.map((t) => ({ ...t, an: t.datum >= heute }));
+  const liste = h('ul', { class: 'plan-liste' }, zeilen.map((t) => h('li', null,
+    h('input', { type: 'checkbox', checked: t.an, 'aria-label': `${t.titel} übernehmen`, onchange: (e) => { t.an = e.target.checked; } }),
+    h('div', { class: 'plan-felder' },
+      h('input', { type: 'text', value: t.titel, 'aria-label': 'Titel', oninput: (e) => { t.titel = e.target.value; } }),
+      h('input', { type: 'date', value: t.datum, 'aria-label': 'Datum', onchange: (e) => { t.datum = e.target.value; } }),
+      h('select', { 'aria-label': 'Fach', onchange: (e) => { t.fach = e.target.value; } },
+        Object.entries(FAECHER_ALLE).map(([id, f]) => h('option', { value: id, selected: id === t.fach }, f.name))),
+      t.thema && h('small', { class: 'hinweis' }, `Thema: ${t.thema}`)))));
+  const zu = modal('Klausurplan prüfen', [
+    h('p', null, `Ich habe ${mehrzahl(zeilen.length, 'Termin', 'Termine')} gefunden. Prüf kurz Datum und Fach – vergangene Termine sind abgewählt.`),
+    liste,
+    h('p', { class: 'hinweis' }, 'Stapel desselben Fachs werden automatisch zugeordnet. Das kannst du später beim Termin ändern.'),
+    h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', onclick: () => {
+      const neu = zeilen.filter((t) => t.an && t.titel.trim() && t.datum);
+      for (const t of neu) {
+        const doppelt = store.getState().termine.some((x) => x.datum === t.datum && x.titel === t.titel.trim());
+        if (doppelt) continue;
+        store.terminSpeichern({ titel: t.titel.trim(), datum: t.datum, thema: t.thema || '', fach: t.fach, deckIds: decks.filter((d) => d.fach === t.fach).map((d) => d.id) });
+      }
+      zu();
+      toast(neu.length ? `${mehrzahl(neu.length, 'Termin', 'Termine')} eingetragen.` : 'Nichts übernommen.');
+      ctx.refresh();
+    } }, 'Termine übernehmen')),
+  ]);
+}
+
 function termineBereich(ctx) {
   const termine = store.getState().termine.filter((t) => tageBis(t.datum) >= 0);
+  const planDatei = h('input', { type: 'file', accept: 'image/*', multiple: true, hidden: true, onchange: (e) => { if (e.target.files.length) planScannen(ctx, e.target.files); } });
   return h('section', null,
     h('div', { class: 'abschnitt-kopf' },
       h('h2', null, 'Klassenarbeiten'),
-      h('button', { class: 'knopf knopf-leise', onclick: () => terminDialog(ctx) }, icon('plus', 18), 'Eintragen')),
+      h('div', { class: 'reihe' },
+        planDatei,
+        planUi.laeuft
+          ? h('span', { class: 'pruef-laeuft', role: 'status' }, 'Ich lese den Plan …')
+          : h('button', { class: 'knopf knopf-leise', onclick: () => planDatei.click() }, icon('scan', 18), 'Plan scannen'),
+        h('button', { class: 'knopf knopf-leise', onclick: () => terminDialog(ctx) }, icon('plus', 18), 'Eintragen'))),
     termine.length
       ? h('div', { class: 'termine' }, termine.map((t) => {
           const tage = tageBis(t.datum);
@@ -74,11 +129,14 @@ function termineBereich(ctx) {
               h('span', { class: 'handschrift' }, tage === 0 ? '!' : String(tage)), h('small', null, tage === 0 ? 'heute' : tage === 1 ? 'Tag' : 'Tage')),
             h('div', { class: 'termin-inhalt' },
               h('strong', null, t.titel),
-              h('small', null, `${new Date(`${t.datum}T00:00:00`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })} · ${anteil} % sitzen`),
+              h('small', null, `${new Date(`${t.datum}T00:00:00`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}${t.deckIds?.length ? ` · ${anteil} % sitzen` : ''}`),
+              t.thema && h('small', null, `Thema: ${t.thema}`),
               h('progress', { max: 100, value: anteil, 'aria-label': `${anteil} Prozent sitzen` })),
-            p.heute.length
-              ? h('button', { class: 'knopf knopf-haupt', onclick: () => lernenStarten(ctx, { cardIds: p.heute.map((c) => c.id), titel: t.titel }) }, `Heute ${p.heute.length}`)
-              : h('span', { class: 'termin-fertig' }, icon('check', 18), 'Für heute fertig'));
+            !t.deckIds?.length
+              ? h('button', { class: 'knopf knopf-mini', onclick: () => terminDialog(ctx, t) }, 'Stapel zuordnen')
+              : p.heute.length
+                ? h('button', { class: 'knopf knopf-haupt', onclick: () => lernenStarten(ctx, { cardIds: p.heute.map((c) => c.id), titel: t.titel }) }, `Heute ${p.heute.length}`)
+                : h('span', { class: 'termin-fertig' }, icon('check', 18), 'Für heute fertig'));
         }))
       : h('button', { class: 'termin-leer', onclick: () => terminDialog(ctx) }, icon('kalender', 22), h('span', null, 'Trag deine nächste Klassenarbeit ein – dann plant die App, wie viel du jeden Tag lernen solltest.')));
 }

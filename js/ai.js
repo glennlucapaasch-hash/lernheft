@@ -536,3 +536,35 @@ export async function kartenPruefen(karten, fach) {
     .map((f) => ({ nr: f.nr, front: txt(f.front) || karten[f.nr].front, back: txt(f.back, 1500) || karten[f.nr].back, grund: txt(f.grund, 300) }))
     .filter((f) => f.front !== karten[f.nr].front || f.back !== karten[f.nr].back);
 }
+
+// Klausurplan / Klassenarbeitsplan von einem Foto lesen
+export async function klausurplanErkennen(bilder, faecher) {
+  const heute = new Date();
+  const r = await frage({
+    bilder,
+    maxTokens: 4000,
+    anweisung:
+      `Auf dem Foto ist ein Klausur- oder Klassenarbeitsplan einer Schule. Heute ist der ${heute.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}. ` +
+      'Lies alle Klassenarbeiten, Klausuren, Tests und Präsentationen aus. Für jede: das Datum (als JJJJ-MM-TT; fehlt das Jahr, nimm das nächstliegende zukünftige Datum im aktuellen Schuljahr), ' +
+      `das Fach (eins von: ${faecher.join(', ')}; passt keins, nimm „sonstiges“), einen kurzen Titel (z. B. „Englisch-Arbeit“) und, falls angegeben, das Thema. ` +
+      'Erfinde nichts. Was nicht lesbar ist, lässt du weg. Steht dort ein Zeitraum statt eines Tages, nimm den ersten Tag.',
+    schema: {
+      type: 'object',
+      properties: {
+        termine: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { datum: { type: 'string' }, fach: { type: 'string' }, titel: { type: 'string' }, thema: { type: 'string' } },
+            required: ['datum', 'fach', 'titel'],
+          },
+        },
+      },
+      required: ['termine'],
+    },
+  });
+  return (Array.isArray(r.termine) ? r.termine : [])
+    .map((t) => ({ datum: txt(t?.datum, 10), fach: faecher.includes(t?.fach) ? t.fach : 'sonstiges', titel: txt(t?.titel, 60), thema: txt(t?.thema, 120) }))
+    .filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t.datum) && !Number.isNaN(new Date(`${t.datum}T00:00:00`).getTime()) && t.titel)
+    .sort((a, b) => a.datum.localeCompare(b.datum));
+}

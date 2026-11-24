@@ -989,3 +989,12 @@ h1.handschrift::after { content: ""; position: absolute; left: 0; right: 0; bott
 .pruef-laeuft { display: inline-flex; align-items: center; gap: .4rem; color: var(--grau); font-size: .9rem; }
 .pruef-laeuft::before { content: ""; width: .9rem; height: .9rem; border-radius: 50%; border: 2px solid var(--koenigsblau); border-right-color: transparent; animation: drehen .8s linear infinite; }
 @keyframes drehen { to { transform: rotate(360deg); } }
+.plan-liste { display: grid; gap: .6rem; max-height: 55vh; overflow-y: auto; }
+.plan-liste li { display: flex; gap: .7rem; align-items: flex-start; padding: .6rem; border: 1px solid var(--linie); border-radius: 8px; }
+.plan-liste li > input[type=checkbox] { width: 1.3rem; height: 1.3rem; margin-top: .7rem; accent-color: var(--koenigsblau); flex: none; }
+.plan-felder { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; min-width: 0; }
+.plan-felder input[type=text], .plan-felder small { grid-column: 1 / -1; }
+.abschnitt-kopf .reihe { gap: .2rem; flex-wrap: wrap; justify-content: flex-end; }
+.abschnitt-kopf { flex-wrap: wrap; }
+.schnell { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
+.schnell-knopf span { overflow-wrap: anywhere; }
