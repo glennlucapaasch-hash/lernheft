@@ -1,11 +1,11 @@
 // Macht die App offline nutzbar: Die App-Dateien werden auf dem Gerät zwischengespeichert.
 // Anfragen an die KI gehen immer direkt ins Netz und werden nie gespeichert.
-const VERSION = 'lernheft-25';
+const VERSION = 'lernheft-26';
 const DATEIEN = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/dom.js', 'js/store.js', 'js/srs.js', 'js/check.js', 'js/calc.js', 'js/exam.js', 'js/ai.js',
   'js/views/start.js', 'js/views/karten.js', 'js/views/lernen.js', 'js/views/scannen.js',
-  'js/views/mathe.js', 'js/views/klausur.js', 'js/views/statistik.js', 'js/views/einstellungen.js', 'js/views/chat.js', 'js/views/notizen.js', 'js/views/spiele.js', 'js/views/duell.js', 'js/views/senden.js', 'js/views/datenschutz.js', 'js/views/noten.js', 'js/views/mehr.js', 'js/views/werkzeuge.js', 'js/views/gruppe.js', 'js/views/kiextras.js', 'js/views/drucken.js', 'js/views/sprechpartner.js', 'js/views/hilfe.js', 'js/views/abenteuer.js', 'js/extras.js', 'js/noten.js', 'js/lernzeit.js', 'js/views/wortspiele.js', 'js/sprache.js', 'js/views/themen.js', 'js/views/erfolge.js', 'js/themen-daten.js', 'js/erfolge.js', 'js/bild.js', 'js/views/anmelden.js', 'js/views/verwaltung.js',
+  'js/views/mathe.js', 'js/views/klausur.js', 'js/views/statistik.js', 'js/views/einstellungen.js', 'js/views/chat.js', 'js/views/notizen.js', 'js/views/spiele.js', 'js/views/duell.js', 'js/views/senden.js', 'js/views/datenschutz.js', 'js/views/noten.js', 'js/views/mehr.js', 'js/views/werkzeuge.js', 'js/views/gruppe.js', 'js/views/kiextras.js', 'js/views/drucken.js', 'js/views/sprechpartner.js', 'js/views/hilfe.js', 'js/views/abenteuer.js', 'js/views/lernraum.js', 'js/extras.js', 'js/noten.js', 'js/lernzeit.js', 'js/views/wortspiele.js', 'js/sprache.js', 'js/views/themen.js', 'js/views/erfolge.js', 'js/themen-daten.js', 'js/erfolge.js', 'js/bild.js', 'js/views/anmelden.js', 'js/views/verwaltung.js',
 ];
 
 self.addEventListener('install', (e) => {

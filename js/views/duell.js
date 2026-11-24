@@ -78,8 +78,8 @@ async function erstellen(ctx, knopf) {
 function start(ctx) {
   const decks = store.getState().decks.filter((d) => store.cardsOf(d.id).length >= 4);
   const code = h('input', { type: 'text', inputmode: 'numeric', maxlength: '4', placeholder: '1234', class: 'duell-code-eingabe', 'aria-label': 'Quiz-Code', value: ui.eingabe, oninput: (e) => { ui.eingabe = e.target.value.replace(/\D/g, ''); e.target.value = ui.eingabe; } });
-  const quelleWahl = h('div', { class: 'tabs', role: 'tablist' }, [['stapel', 'Aus meinen Karten'], ['ki', '✨ KI-Fragen zu einem Thema']].map(([w, t]) =>
-    h('button', { role: 'tab', 'aria-selected': String(ui.quelle === w), class: `tab ${ui.quelle === w ? 'ist-aktiv' : ''}`, onclick: () => { ui.quelle = w; ctx.refresh(); } }, t)));
+  const quelleWahl = h('div', { class: 'reiter', role: 'tablist' }, [['stapel', 'Aus meinen Karten'], ['ki', '✨ KI-Fragen zu einem Thema']].map(([w, t]) =>
+    h('button', { role: 'tab', 'aria-selected': String(ui.quelle === w), class: `reiter-knopf ${ui.quelle === w ? 'ist-aktiv' : ''}`, onclick: () => { ui.quelle = w; ctx.refresh(); } }, t)));
   return h('div', { class: 'spiel duell-start' },
     h('div', { class: 'live-titel' }, h('span', null, '▲'), h('span', null, '◆'), h('span', null, '●'), h('span', null, '■'), h('strong', null, 'Live-Quiz')),
     h('section', { class: 'blatt live-mitspielen' },

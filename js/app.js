@@ -24,6 +24,7 @@ import { duell } from './views/duell.js';
 import { sprechpartner } from './views/sprechpartner.js';
 import { hilfe } from './views/hilfe.js';
 import { abenteuer } from './views/abenteuer.js';
+import { lernraum } from './views/lernraum.js';
 import { neueAbzeichen } from './erfolge.js';
 import * as lernzeit from './lernzeit.js';
 import { aktuellesFach } from './views/lernen.js';
@@ -46,6 +47,7 @@ const BEREICHE = [
   { id: 'formeln', name: 'Formeln', icon: 'formel', view: formeln, gruppe: 'werkzeuge', text: 'Formelsammlung' },
   { id: 'hausaufgaben', name: 'Hausaufgaben', icon: 'haken', view: hausaufgaben, gruppe: 'werkzeuge', text: 'Planer zum Abhaken' },
   { id: 'stundenplan', name: 'Stundenplan', icon: 'kalender', view: stundenplan, gruppe: 'werkzeuge', text: 'Was ist morgen dran?' },
+  { id: 'lernraum', name: 'Lernraum', icon: 'gruppe', view: lernraum, gruppe: 'gruppe', nurKonto: true, text: 'Video, Whiteboard, zusammen lernen' },
   { id: 'gruppe', name: 'Gemeinsam', icon: 'gruppe', view: gruppe, gruppe: 'gruppe', nurKonto: true, text: 'Chat, Challenge, gemeinsame Stapel' },
   { id: 'noten', name: 'Noten', icon: 'zeugnis', view: noten, gruppe: 'ich', text: 'Schnitt und Empfehlungen' },
   { id: 'erfolge', name: 'Erfolge', icon: 'pokal', view: erfolge, gruppe: 'ich', text: 'Level, Abzeichen, Rückblick' },

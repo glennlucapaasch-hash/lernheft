@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as db from './db.js';
 import * as extra from './extra.js';
+import * as raum from './raum.js';
 import * as schriften from './schriften.js';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -222,6 +223,16 @@ async function api(req, res, pfad) {
   if (gsm && !gsm[2] && methode === 'DELETE') { extra.gsLoeschen(gsm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
   if (gsm && gsm[2] && !gsm[4] && methode === 'POST') return senden(res, 200, extra.gsKarteDazu(gsm[1], konto.name, konto.admin, await koerper(req, 20000)));
   if (gsm && gsm[4] && methode === 'DELETE') return senden(res, 200, extra.gsKarteWeg(gsm[1], gsm[4], konto.name, konto.admin));
+  // ----- Lernräume (Video, Whiteboard, gemeinsame Karte, Timer) -----
+  if (pfad === '/api/raum/ice' && methode === 'GET') return senden(res, 200, raum.ice(konto.name));
+  if (pfad === '/api/raum' && methode === 'POST') return senden(res, 200, raum.anlegen(konto.name, (await koerper(req, 2000)).titel));
+  const rm = /^\/api\/raum\/(\d{6})(\/(beitreten|verlassen|signal|status|zeichnen|karte|timer))?$/.exec(pfad);
+  if (rm && !rm[3] && methode === 'GET') { const q = new URL(req.url, 'http://x').searchParams; return senden(res, 200, raum.stand(rm[1], konto.name, Number(q.get('sig')) || 0, Number(q.get('strich')) || 0)); }
+  if (rm && rm[3] && methode === 'POST') {
+    const body = await koerper(req, rm[3] === 'zeichnen' || rm[3] === 'karte' ? 200000 : 30000);
+    const fn = { beitreten: () => raum.beitreten(rm[1], konto.name), verlassen: () => raum.verlassen(rm[1], konto.name), signal: () => raum.signal(rm[1], konto.name, body), status: () => raum.status(rm[1], konto.name, body), zeichnen: () => raum.zeichnen(rm[1], konto.name, body), karte: () => raum.karte(rm[1], konto.name, body), timer: () => raum.timer(rm[1], konto.name, body) }[rm[3]];
+    return senden(res, 200, fn());
+  }
   if (pfad === '/api/rangliste' && methode === 'GET') return senden(res, 200, extra.rangliste());
   if (pfad === '/api/push' && methode === 'GET') return senden(res, 200, { schluessel: extra.vapidOeffentlich(), abo: extra.aboLesen(konto.name) });
   if (pfad === '/api/push' && methode === 'POST') return senden(res, 200, { abo: extra.aboSetzen(konto.name, await koerper(req, 20000)) });
@@ -301,7 +312,7 @@ const SICHERHEIT = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'same-origin',
   'x-frame-options': 'DENY',
-  'permissions-policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()',
+  'permissions-policy': 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=(), interest-cohort=()',
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-resource-policy': 'same-origin',
   ...(SICHER ? { 'strict-transport-security': 'max-age=31536000; includeSubDomains' } : {}),
@@ -309,12 +320,14 @@ const SICHERHEIT = {
 
 // Anfrage-Bremse: höchstens 240 API-Anfragen pro Minute und Adresse
 const anfragen = new Map();
-function zuViele(adresse) {
+function zuViele(adresse, live) {
+  // Live-Funktionen (Lernraum, Live-Quiz) fragen oft ab und mehrere Leute teilen sich im Schul-WLAN eine Adresse → eigenes, größeres Kontingent
+  const schluessel = live ? `live:${adresse}` : adresse;
   const jetzt = Date.now();
-  const e = anfragen.get(adresse);
-  if (!e || jetzt - e.seit > 60e3) { anfragen.set(adresse, { seit: jetzt, n: 1 }); return false; }
+  const e = anfragen.get(schluessel);
+  if (!e || jetzt - e.seit > 60e3) { anfragen.set(schluessel, { seit: jetzt, n: 1 }); return false; }
   e.n += 1;
-  return e.n > 240;
+  return e.n > (live ? 3000 : 240);
 }
 setInterval(() => { const g = Date.now() - 120e3; for (const [k, v] of anfragen) if (v.seit < g) anfragen.delete(k); }, 300e3).unref();
 
@@ -334,7 +347,7 @@ const server = http.createServer(async (req, res) => {
       res.end(f);
       return;
     }
-    if (roh.startsWith('/api/') && zuViele(ip(req))) { fehler(res, 429, 'Zu viele Anfragen. Warte eine Minute.'); return; }
+    if (roh.startsWith('/api/') && zuViele(ip(req), /^\/api\/(raum|duell)\//.test(roh))) { fehler(res, 429, 'Zu viele Anfragen. Warte eine Minute.'); return; }
     const pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (pfad.startsWith('/api/')) await api(req, res, pfad);
     else if (req.method === 'GET' || req.method === 'HEAD') await datei(req, res, pfad);
