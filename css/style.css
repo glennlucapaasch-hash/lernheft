@@ -1452,3 +1452,4 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
 body.lr-vollbild { overflow: hidden; }
 body.lr-vollbild .chat-blase, body.lr-vollbild .nav-unten { visibility: hidden; }
 @keyframes grossAuf { from { transform: scale(.6); opacity: 0; } }
+.lr-kachel.ist-ich.rueckkamera video, .lr-kachel.ist-gross.ist-ich.rueckkamera:not(.teilt) video { transform: none; }

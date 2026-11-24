@@ -67,6 +67,7 @@ async function betreten(ctx, code, titel) {
     const stand = code ? await api(`/api/raum/${code}/beitreten`, {}) : await api('/api/raum', { titel });
     const ice = await api('/api/raum/ice').catch(() => ({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }));
     raum = neuerRaum(ctx, stand, lokal, ice);
+    try { raum.mehrereKameras = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput').length > 1; } catch { /* egal */ }
     ctx.refresh();
   } catch (e) {
     lokal?.getTracks().forEach((t) => t.stop());
@@ -81,7 +82,7 @@ function neuerRaum(ctx, stand, lokal, ice) {
     code: stand.code, titel: stand.titel, ich, lokal, ice, peers: new Map(), sig: 0, strich: 0, aus: false,
     kameraTrack: lokal?.getVideoTracks()[0] || null, bildschirmTrack: null,
     mikro: Boolean(lokal?.getAudioTracks().length), kamera: Boolean(lokal?.getVideoTracks().length), stand,
-    el: {}, timerAlarm: null, tab: 'whiteboard',
+    el: {}, timerAlarm: null, tab: 'whiteboard', richtung: 'user',
   };
   R.senden = (an, typ, daten) => api(`/api/raum/${R.code}/signal`, { an, typ, daten }).catch(() => {});
   R.statusSenden = () => api(`/api/raum/${R.code}/status`, { kamera: R.kamera, mikro: R.mikro, bildschirm: Boolean(R.bildschirmTrack) }).catch(() => {});
@@ -242,6 +243,24 @@ function steuerung(ctx, R) {
     knopf(R.kamera, '📷', '🚫', R.kamera ? 'Kamera ausschalten' : 'Kamera einschalten', () => {
       if (!R.kameraTrack) { toast('Keine Kamera freigegeben.', 'fehler'); return; }
       R.kamera = !R.kamera; R.kameraTrack.enabled = R.kamera; R.statusSenden(); neu(); zeichneLeute(R);
+    }),
+    R.mehrereKameras && knopf(true, '🔄', '🔄', 'Kamera umdrehen', async () => {
+      if (!R.kameraTrack) return;
+      const neueRichtung = R.richtung === 'environment' ? 'user' : 'environment';
+      try {
+        R.kameraTrack.stop(); // auf iPhones geht oft nur eine Kamera gleichzeitig
+        const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: neueRichtung }, width: { ideal: 640 }, height: { ideal: 480 } } })
+          .catch(() => navigator.mediaDevices.getUserMedia({ video: { facingMode: neueRichtung } }));
+        const t = s.getVideoTracks()[0];
+        t.enabled = R.kamera;
+        R.lokal.removeTrack(R.kameraTrack);
+        R.lokal.addTrack(t);
+        R.kameraTrack = t;
+        R.richtung = neueRichtung;
+        if (!R.bildschirmTrack) for (const p of R.peers.values()) videoSenderSetzen(p, t);
+        R.el.eigene.classList.toggle('rueckkamera', neueRichtung === 'environment');
+        if (!R.bildschirmTrack) { const v = R.el.eigene.querySelector('video'); v.srcObject = R.lokal; v.play().catch(() => {}); }
+      } catch { toast('Die andere Kamera ließ sich nicht starten.', 'fehler'); }
     }),
     navigator.mediaDevices?.getDisplayMedia && knopf(!R.bildschirmTrack, '🖥️', '⏹️', R.bildschirmTrack ? 'Bildschirm teilen beenden' : 'Bildschirm teilen', async () => {
       if (R.bildschirmTrack) { bildschirmEnde(R); neu(); return; }
@@ -442,6 +461,7 @@ function raumSeite(ctx, R) {
   const eigene = kachel(R.ich, true);
   if (R.lokal) eigene.querySelector('video').srcObject = R.bildschirmTrack ? new MediaStream([R.bildschirmTrack]) : R.lokal;
   R.el.eigene = eigene;
+  eigene.classList.toggle('rueckkamera', R.richtung === 'environment');
   R.el.raster = h('div', { class: 'lr-raster' }, eigene);
   for (const p of R.peers.values()) { if (p.kachel) R.el.raster.append(p.kachel); }
   R.el.steuer = steuerung(ctx, R);
