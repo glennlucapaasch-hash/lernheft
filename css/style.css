@@ -1418,3 +1418,4 @@ html[data-schrift="sehrgross"] { font-size: 131.25%; }
   .lr-kopf { grid-column: 1 / -1; }
   .lr-links .lr-raster { grid-template-columns: 1fr !important; }
 }
+.lr-hilfe { display: grid; gap: .5rem; padding-left: 1.2rem; list-style: disc; line-height: 1.45; }

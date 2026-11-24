@@ -1,6 +1,6 @@
 // Lernraum: gemeinsam lernen mit Video, Ton, Bildschirm teilen, Whiteboard, gemeinsamer Karte und Timer.
 // Bild und Ton gehen direkt von Gerät zu Gerät (WebRTC). Es wird nichts aufgezeichnet.
-import { h, icon, toast, nachfragen } from '../dom.js';
+import { h, icon, toast, nachfragen, modal } from '../dom.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { shuffle } from '../exam.js';
@@ -29,15 +29,39 @@ function startSeite(ctx) {
       h('h2', null, 'Neuen Lernraum öffnen'),
       h('form', { class: 'reihe', onsubmit: (e) => { e.preventDefault(); betreten(ctx, null, titel.value.trim()); } },
         titel, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, icon('gruppe', 18), 'Raum öffnen'))),
-    h('p', { class: 'hinweis' }, 'Tipp: Kopfhörer verhindern Echo. Auf dem iPhone pausiert das Video, wenn du die App verlässt.'));
+    h('p', { class: 'hinweis' }, 'Beim Beitreten fragt dein Handy, ob das Lernheft Kamera und Mikrofon benutzen darf – tippe auf „Erlauben“. Tipp: Kopfhörer verhindern Echo.'));
+}
+
+// Erklärt, warum Kamera/Mikrofon nicht gehen, und wie man es erlaubt. true = trotzdem ohne beitreten
+function zugriffHilfe(fehler) {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const inApp = /Instagram|FBAN|FBAV|WhatsApp|Snapchat|TikTok|Line\//i.test(navigator.userAgent);
+  const gesperrt = fehler === 'NotAllowedError' || fehler === 'SecurityError';
+  const tipps = inApp ? ['Du hast den Link in einer anderen App geöffnet (z. B. WhatsApp oder Instagram). Dort ist die Kamera gesperrt.', 'Öffne lernheft.app direkt in Safari oder Chrome.']
+    : gesperrt && ios ? ['Die Kamera wurde für diese Seite blockiert (vielleicht früher einmal „Nicht erlauben“ gedrückt).', 'In Safari: links in der Adressleiste auf „aA“ (oder das Symbol) tippen → „Website-Einstellungen“ → Kamera und Mikrofon auf „Erlauben“ oder „Fragen“.', 'Oder: iPhone-Einstellungen → Apps → Safari → Kamera bzw. Mikrofon → „Fragen“.', 'Wenn du das Lernheft vom Home-Bildschirm öffnest: Einstellungen → Lernheft (bzw. Safari) → Kamera erlauben. Sonst probier es einmal direkt in Safari.', 'Danach die Seite neu laden.']
+      : gesperrt ? ['Kamera und Mikrofon wurden für diese Seite blockiert.', 'Tipp links in der Adressleiste auf das Schloss- bzw. Einstellungs-Symbol → Kamera und Mikrofon erlauben → Seite neu laden.', 'Auf Android zusätzlich: Einstellungen → Apps → Chrome → Berechtigungen → Kamera und Mikrofon erlauben.']
+        : fehler === 'NotFoundError' ? ['Es wurde keine Kamera und kein Mikrofon gefunden.']
+          : fehler === 'NotReadableError' ? ['Kamera oder Mikrofon werden gerade von einer anderen App benutzt (z. B. FaceTime, WhatsApp-Anruf). Beende die und versuch es nochmal.']
+            : [`Kamera und Mikrofon konnten nicht gestartet werden${fehler ? ` (${fehler})` : ''}.`];
+  return new Promise((ok) => {
+    const zu = modal('Kamera und Mikrofon', [
+      h('ul', { class: 'lr-hilfe' }, tipps.map((t) => h('li', null, t))),
+      h('div', { class: 'reihe reihe-ende' },
+        h('button', { class: 'knopf', onclick: () => { ok(true); zu(); } }, 'Ohne Kamera beitreten'),
+        h('button', { class: 'knopf knopf-haupt', onclick: () => { ok(false); zu(); location.reload(); } }, 'Seite neu laden')),
+    ], { onClose: () => ok(false) });
+  });
 }
 
 async function betreten(ctx, code, titel) {
   let lokal = null;
   try {
     lokal = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true }, video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
-  } catch {
-    try { lokal = await navigator.mediaDevices.getUserMedia({ audio: true }); toast('Kamera nicht verfügbar – du bist nur mit Ton dabei.'); } catch { toast('Ohne Kamera und Mikrofon – du kannst zuschauen, zuhören und mitschreiben.'); }
+  } catch (e1) {
+    try { lokal = await navigator.mediaDevices.getUserMedia({ audio: true }); toast('Kamera nicht verfügbar – du bist nur mit Ton dabei.'); } catch (e2) {
+      const fehler = e2?.name || e1?.name || '';
+      if (!(await zugriffHilfe(fehler))) return;
+    }
   }
   try {
     const stand = code ? await api(`/api/raum/${code}/beitreten`, {}) : await api('/api/raum', { titel });
