@@ -279,7 +279,7 @@ function detail(ctx, deck) {
 
   return h('div', { class: 'seite' },
     h('button', { class: 'knopf knopf-leise zurueck', onclick: () => { ui.deckId = null; ui.suche = ''; ctx.refresh(); } }, icon('zurueck', 18), 'Alle Stapel'),
-    h('header', { class: `karteikarte stapel-kopf farbe-${fach.farbe}` },
+    h('header', { class: `karteikarte stapel-kopf farbe-${fach.farbe}`, 'data-lern-fach': deck.fach },
       h('span', { class: 'stapel-fach' }, fach.name),
       h('h1', null, deck.name),
       h('p', null, mehrzahl(alle.length, 'Karte', 'Karten'), faellig > 0 && [', ', h('mark', null, `${faellig} fällig`)]),

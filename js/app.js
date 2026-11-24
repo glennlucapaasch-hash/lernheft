@@ -18,6 +18,8 @@ import { themen } from './views/themen.js';
 import { erfolge } from './views/erfolge.js';
 import { noten } from './views/noten.js';
 import { neueAbzeichen } from './erfolge.js';
+import * as lernzeit from './lernzeit.js';
+import { aktuellesFach } from './views/lernen.js';
 
 const BEREICHE = [
   { id: 'start', name: 'Start', icon: 'heft', view: start },
@@ -139,6 +141,7 @@ const ctx = {
   optionen: null,
   konto: konto || null,
   async abmelden() {
+    lernzeit.sichern();
     store.jetztSpeichern();
     await new Promise((r) => setTimeout(r, 300));
     try { await api('/api/abmelden', { method: 'POST' }); } catch { /* egal */ }
@@ -240,6 +243,17 @@ addEventListener('hashchange', () => {
 
 themeAnwenden();
 zeichnen();
+
+// Lernzeit nur für Glenns Konto messen
+if (konto?.name === 'glenn') {
+  lernzeit.starten(() => {
+    if (ueberlagerung) return { bereich: 'abfrage', fach: aktuellesFach() };
+    const b = bereich().id;
+    // Fach aus dem gerade offenen Stapel oder der offenen Notiz
+    const fach = document.querySelector('[data-lern-fach]')?.dataset.lernFach || null;
+    return { bereich: b, fach };
+  });
+}
 
 // Offline nutzbar machen (nur auf einer echten Webadresse; in Vorschauen ist das gesperrt).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

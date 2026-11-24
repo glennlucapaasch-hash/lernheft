@@ -14,6 +14,13 @@ const SONDERZEICHEN = {
 
 let sitzung = null;
 
+// Für die Lernzeit: welches Fach wird gerade abgefragt?
+export function aktuellesFach() {
+  const id = sitzung?.reihe?.[0];
+  const karte = id && store.getState().cards.find((c) => c.id === id);
+  return karte ? store.getDeck(karte.deckId)?.fach : null;
+}
+
 // modus: 'umdrehen' | 'schreiben' | 'ankreuzen'; richtung: 'vor' (Vorderseite fragen) | 'rueck'
 export function lernenStarten(ctx, { cardIds, modus = 'umdrehen', richtung = 'vor', titel = 'Abfrage', danach }) {
   sitzung = {

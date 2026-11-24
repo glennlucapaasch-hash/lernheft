@@ -1,6 +1,7 @@
 import { h, mehrzahl, datumKurz } from '../dom.js';
 import * as store from '../store.js';
 import { STUFEN, STUFEN_NAMEN } from '../srs.js';
+import * as lernzeit from '../lernzeit.js';
 
 function tageDiagramm() {
   const tage = store.letzteTage(14);
@@ -42,6 +43,35 @@ function stufenDiagramm() {
     h('p', { class: 'hinweis' }, '„Sicher“ heißt: Du hast die Karte mehrmals gewusst und sie kommt erst in drei Wochen oder später wieder.'));
 }
 
+function lernzeitBereich() {
+  if (!lernzeit.laeuft()) return null;
+  const tage = lernzeit.tage(14);
+  const heute = tage[tage.length - 1].sek;
+  const woche = tage.slice(-7).reduce((s, t) => s + t.sek, 0);
+  const max = Math.max(...tage.map((t) => t.sek), 60);
+  const { bereiche, faecher } = lernzeit.aufteilung(7);
+  const gesamtB = bereiche.reduce((s, [, v]) => s + v, 0) || 1;
+  const gesamtF = faecher.reduce((s, [, v]) => s + v, 0) || 1;
+  const balken = (liste, gesamt, name) => h('ul', { class: 'lz-balken' }, liste.map(([k, sek]) => h('li', null,
+    h('span', { class: 'lz-name' }, name(k)),
+    h('span', { class: 'lz-spur' }, h('span', { style: `width:${Math.max(3, (sek / gesamt) * 100)}%` })),
+    h('span', { class: 'lz-wert' }, lernzeit.dauer(sek)))));
+  return h('section', { class: 'blatt' },
+    h('h2', null, '⏱️ Deine Lernzeit'),
+    h('p', { class: 'hinweis' }, 'Nur für dich, Glenn: Gezählt wird aktive Zeit in Karten, Abfragen, Notizen, Themen, Lernhelfer, Spielen, Klausuren, Scannen und Mathe.'),
+    h('dl', { class: 'zahlen' },
+      h('div', null, h('dt', null, 'Heute'), h('dd', null, lernzeit.dauer(heute))),
+      h('div', null, h('dt', null, 'Letzte 7 Tage'), h('dd', null, lernzeit.dauer(woche))),
+      h('div', null, h('dt', null, 'Ø pro Tag'), h('dd', null, lernzeit.dauer(woche / 7)))),
+    h('div', { class: 'balken', role: 'img', 'aria-label': `Lernzeit der letzten 14 Tage, heute ${lernzeit.dauer(heute)}` }, tage.map((t, i) =>
+      h('div', { class: `balken-spalte ${i === tage.length - 1 ? 'ist-heute' : ''}`, title: `${t.datum.toLocaleDateString('de-DE')}: ${lernzeit.dauer(t.sek)}` },
+        h('span', { class: 'balken-wert' }, i === tage.length - 1 && t.sek ? String(Math.round(t.sek / 60)) : ''),
+        h('span', { class: 'balken-bahn' }, t.sek > 0 && h('span', { class: 'balken-fuellung', style: `height:${Math.max(4, (t.sek / max) * 100)}%` })),
+        h('span', { class: 'balken-tag' }, i === tage.length - 1 ? 'heute' : i % 2 ? t.datum.toLocaleDateString('de-DE', { weekday: 'short' }).replace('.', '') : '')))),
+    bereiche.length ? [h('h3', null, 'Was du gelernt hast (7 Tage)'), balken(bereiche, gesamtB, lernzeit.bereichName)] : h('p', { class: 'hinweis' }, 'Noch keine Lernzeit gemessen – leg los!'),
+    faecher.length > 0 && [h('h3', null, 'Nach Fach'), balken(faecher, gesamtF, lernzeit.fachName)]);
+}
+
 export function statistik() {
   const s = store.getState();
   const serie = store.streak();
@@ -56,6 +86,7 @@ export function statistik() {
       h('div', null, h('dt', null, 'Heute abgefragt'), h('dd', null, String(heute.abfragen))),
       h('div', null, h('dt', null, 'Karten insgesamt'), h('dd', null, String(s.cards.length))),
       h('div', null, h('dt', null, 'Gewusst'), h('dd', null, quote === null ? '–' : `${quote} %`))),
+    lernzeitBereich(),
     tageDiagramm(),
     stufenDiagramm(),
     s.exams.length > 0 && h('section', { class: 'blatt' },

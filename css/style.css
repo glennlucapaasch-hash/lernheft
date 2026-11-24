@@ -1031,3 +1031,10 @@ h1.handschrift::after { content: ""; position: absolute; left: 0; right: 0; bott
 .noten-karte-icon { width: 2.6rem; height: 2.6rem; border-radius: 10px; display: grid; place-items: center; background: var(--k-gelb); color: #1b2a5c; flex: none; }
 .noten-karte-text { flex: 1; display: grid; min-width: 0; }
 .noten-karte-text small { color: var(--grau); }
+.lz-balken { display: grid; gap: .45rem; }
+.lz-balken li { display: grid; grid-template-columns: minmax(7rem, 11rem) 1fr auto; gap: .6rem; align-items: center; font-size: .9rem; }
+.lz-spur { height: .7rem; border-radius: 99px; background: var(--linie); overflow: hidden; }
+.lz-spur span { display: block; height: 100%; border-radius: 99px; background: var(--koenigsblau); animation: wachsenX .7s ease-out backwards; transform-origin: left; }
+.lz-wert { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.blatt h3 { margin-top: 1rem; }
+@media (max-width: 480px) { .lz-balken li { grid-template-columns: 6.5rem 1fr auto; } }

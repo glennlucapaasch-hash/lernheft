@@ -459,7 +459,7 @@ function editor(ctx, n) {
   if (!n.titel && !n.striche.length) queueMicrotask(() => titel.focus());
 
   const titel = h('input', { type: 'text', class: 'notiz-titel', value: n.titel, placeholder: 'Titel', maxlength: '80', 'aria-label': 'Titel der Notiz', oninput: (e) => { n.titel = e.target.value; speichern(); } });
-  return h('div', { class: 'seite seite-notiz' },
+  return h('div', { class: 'seite seite-notiz', 'data-lern-fach': n.fach },
     h('div', { class: 'notiz-kopf' },
       h('button', { class: 'knopf knopf-leise', onclick: () => { ui.id = null; ctx.refresh(); } }, icon('zurueck', 18), 'Notizen'),
       titel,

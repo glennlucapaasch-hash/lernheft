@@ -77,6 +77,7 @@ function uebernehmen(daten) {
     termine: Array.isArray(d.termine) ? d.termine.filter((t) => t && t.id && t.datum) : [],
     spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0, ...(d.spiele || {}) },
     abzeichen: d.abzeichen && typeof d.abzeichen === 'object' ? d.abzeichen : {},
+    lernzeit: d.lernzeit && typeof d.lernzeit === 'object' ? d.lernzeit : {},
     noten: Array.isArray(d.noten) ? d.noten.filter((n) => n && n.id && Number.isFinite(n.wert)) : [],
     notenEinst: { system: 'noten', muendlich: 60, faecher: {}, ...(d.notenEinst || {}) },
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
