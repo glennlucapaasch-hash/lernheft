@@ -3,6 +3,11 @@ import { stufe } from '../srs.js';
 import { level, rueckblick } from '../erfolge.js';
 import { FAECHER as FAECHER_ALLE } from '../store.js';
 import { kiVerfuegbar, bildVorbereiten, klausurplanErkennen } from '../ai.js';
+import { karteDesTages, fehlerKarten, miniAufgaben, aufgabenBelohnen, haustier } from '../extras.js';
+import { sucheOeffnen, timerOeffnen } from './mehr.js';
+import { offeneHausaufgaben, morgenDran } from './werkzeuge.js';
+import { ankuendigung } from './gruppe.js';
+import { sprechen, kannSprechen } from '../dom.js';
 import { uebersicht as notenUebersicht, empfehlungen as notenTipps, zahl as notenZahl } from '../noten.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
@@ -154,6 +159,43 @@ function rueckblickHinweis(ctx) {
     icon('pokal', 22));
 }
 
+function heuteExtras(ctx) {
+  const s = store.getState();
+  for (const a of aufgabenBelohnen()) toast(`✅ Aufgabe geschafft: ${a.text} (+${a.xp} Punkte)`);
+  const aufgaben = miniAufgaben();
+  const tier = haustier();
+  const kdt = karteDesTages();
+  const fehler = fehlerKarten();
+  const ha = offeneHausaufgaben().filter((a) => a.bis <= new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10));
+  const morgen = morgenDran();
+  const fachDecks = (f) => s.decks.filter((d) => d.fach === f).map((d) => d.id);
+  const morgenKarten = s.cards.filter((c) => morgen.faecher.some((f) => fachDecks(f).includes(c.deckId)));
+  return [
+    h('section', { class: 'tier-und-aufgaben' },
+      h('div', { class: `tier tier-${tier.laune}` },
+        h('span', { class: 'tier-icon', 'aria-hidden': 'true' }, tier.icon),
+        h('div', null, h('strong', null, `${tier.name} ${tier.gesicht}`), h('small', null, tier.spruch),
+          h('div', { class: 'tier-futter', role: 'img', 'aria-label': `${Math.round(tier.futter * 100)} Prozent satt` }, h('span', { style: `width:${Math.round(tier.futter * 100)}%` })))),
+      h('div', { class: 'aufgaben' },
+        h('strong', null, 'Heutige Mini-Aufgaben'),
+        h('ul', null, aufgaben.map((a) => h('li', { class: a.fertig ? 'ist-fertig' : '' },
+          h('span', { class: 'aufgabe-haken', 'aria-hidden': 'true' }, a.fertig ? '✓' : ''),
+          h('span', null, a.text), h('small', null, a.fertig ? `+${a.xp}` : `${a.stand}/${a.ziel}`)))))),
+    ha.length > 0 && h('a', { class: 'hinweis-karte', href: '#hausaufgaben' }, h('span', { 'aria-hidden': 'true' }, '📒'),
+      h('span', null, h('strong', null, `${mehrzahl(ha.length, 'Hausaufgabe', 'Hausaufgaben')} bald fällig`), h('small', null, ha.map((a) => a.text).slice(0, 2).join(' · ')))),
+    morgen.faecher.length > 0 && h('div', { class: 'hinweis-karte' }, h('span', { 'aria-hidden': 'true' }, '🗓️'),
+      h('span', null, h('strong', null, `${morgen.datum.toLocaleDateString('de-DE', { weekday: 'long' })}: ${morgen.faecher.map((f) => FAECHER_ALLE[f]?.name).join(', ')}`),
+        h('small', null, morgenKarten.length ? 'Kurz wiederholen, was morgen drankommt:' : 'Für diese Fächer hast du noch keine Karten.')),
+      morgenKarten.length > 0 && h('button', { class: 'knopf knopf-mini', onclick: () => lernenStarten(ctx, { cardIds: morgenKarten.sort(() => Math.random() - 0.5).slice(0, 15).map((c) => c.id), titel: 'Für morgen' }) }, 'Wiederholen')),
+    kdt && h('section', { class: 'karteikarte kdt farbe-gelb' },
+      h('span', { class: 'stapel-fach' }, 'Karte des Tages'),
+      h('p', { class: 'kdt-vorn' }, kdt.front, FAECHER_ALLE[store.getDeck(kdt.deckId)?.fach]?.lang && kannSprechen() && h('button', { class: 'knopf-icon', 'aria-label': 'Vorlesen', onclick: () => sprechen(kdt.front, FAECHER_ALLE[store.getDeck(kdt.deckId).fach].lang) }, icon('ton', 18))),
+      h('details', null, h('summary', null, 'Auflösen'), h('p', { class: 'kdt-hinten' }, kdt.back), kdt.note && h('small', null, kdt.note))),
+    fehler.length >= 3 && h('button', { class: 'hinweis-karte knopf-karte', onclick: () => lernenStarten(ctx, { cardIds: fehler.map((c) => c.id), modus: 'schreiben', titel: 'Fehler-Training' }) },
+      h('span', { 'aria-hidden': 'true' }, '🎯'), h('span', null, h('strong', null, 'Fehler-Training'), h('small', null, `Deine ${fehler.length} schwersten Karten aus allen Stapeln`))),
+  ];
+}
+
 export function start(ctx) {
   const s = store.getState();
   const leer = !s.decks.length;
@@ -195,10 +237,12 @@ export function start(ctx) {
         })()),
         h('p', { class: 'datum' }, datumLang())),
       h('div', { class: 'kopf-links' },
+        h('button', { class: 'knopf-icon', 'aria-label': 'Suchen', onclick: () => sucheOeffnen(ctx) }, icon('lupe')),
         h('a', { class: 'knopf-icon', href: '#erfolge', 'aria-label': 'Erfolge' }, icon('pokal')),
         h('a', { class: 'knopf-icon', href: '#statistik', 'aria-label': 'Statistik' }, icon('statistik')),
         h('a', { class: 'knopf-icon', href: '#einstellungen', 'aria-label': 'Einstellungen' }, icon('einstellungen')))),
 
+    ankuendigung(ctx),
     h('section', { class: 'blatt heute', 'aria-label': 'Heute' },
       heuteBlock,
       h('div', { class: 'heute-stand' },
@@ -212,8 +256,9 @@ export function start(ctx) {
       h('a', { class: 'schnell-knopf', href: '#klausur' }, icon('klausur', 26), h('span', null, 'Klausur')),
       h('a', { class: 'schnell-knopf', href: '#themen' }, icon('buch', 26), h('span', null, 'Themen')),
       h('a', { class: 'schnell-knopf', href: '#spiele' }, icon('spiele', 26), h('span', null, 'Spiele')),
-      h('a', { class: 'schnell-knopf', href: '#mathe' }, icon('mathe', 26), h('span', null, 'Rechner'))),
+      h('button', { class: 'schnell-knopf', onclick: timerOeffnen }, icon('uhr', 26), h('span', null, 'Timer'))),
 
+    !leer && heuteExtras(ctx),
     rueckblickHinweis(ctx),
     termineBereich(ctx),
     (() => {

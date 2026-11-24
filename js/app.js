@@ -1,7 +1,7 @@
 import { h, icon, toast, nachfragen } from './dom.js';
 import * as store from './store.js';
 import { konfigurieren, serverModus } from './ai.js';
-import { anmeldeSeite } from './views/anmelden.js';
+import { anmeldeSeite, einladungSeite } from './views/anmelden.js';
 import { datenschutz, datenschutzSeite } from './views/datenschutz.js';
 import { verwaltung } from './views/verwaltung.js';
 import { start } from './views/start.js';
@@ -17,26 +17,34 @@ import { spiele } from './views/spiele.js';
 import { themen } from './views/themen.js';
 import { erfolge } from './views/erfolge.js';
 import { noten } from './views/noten.js';
+import { mehrSeite, sucheOeffnen, GRUPPEN } from './views/mehr.js';
+import { hausaufgaben, stundenplan, formeln } from './views/werkzeuge.js';
+import { gruppe } from './views/gruppe.js';
 import { neueAbzeichen } from './erfolge.js';
 import * as lernzeit from './lernzeit.js';
 import { aktuellesFach } from './views/lernen.js';
 
 const BEREICHE = [
-  { id: 'start', name: 'Start', icon: 'heft', view: start },
-  { id: 'karten', name: 'Karten', icon: 'karten', view: karten },
-  { id: 'notizen', name: 'Notizen', icon: 'stift', view: notizen },
-  { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen },
-  { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
-  { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
-  { id: 'themen', name: 'Themen', icon: 'buch', view: themen, neben: true },
-  { id: 'noten', name: 'Noten', icon: 'zeugnis', view: noten, neben: true },
-  { id: 'erfolge', name: 'Erfolge', icon: 'pokal', view: erfolge, neben: true },
-  { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, neben: true },
-  { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
-  { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, neben: true, nurAdmin: true },
+  { id: 'start', name: 'Start', icon: 'heft', view: start, unten: true },
+  { id: 'karten', name: 'Karten', icon: 'karten', view: karten, unten: true, gruppe: 'lernen', text: 'Stapel lernen und bearbeiten' },
+  { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen, unten: true, gruppe: 'lernen', text: 'Buchseite → Karteikarten' },
+  { id: 'notizen', name: 'Notizen', icon: 'stift', view: notizen, unten: true, gruppe: 'lernen', text: 'Mit Stift schreiben' },
+  { id: 'mehr', name: 'Mehr', icon: 'raster', view: (ctx) => mehrSeite(ctx, BEREICHE), unten: true },
+  { id: 'themen', name: 'Themen', icon: 'buch', view: themen, gruppe: 'lernen', text: 'Erklärungen Klasse 5–12' },
+  { id: 'klausur', name: 'Probeklausur', icon: 'klausur', view: klausur, gruppe: 'lernen', text: 'Mit Note und Korrektur' },
+  { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, gruppe: 'lernen', text: 'Memory, Wortregen, Duell …' },
+  { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, gruppe: 'lernen', text: 'KI fragen' },
+  { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe, gruppe: 'werkzeuge', text: 'Rechner, Funktionen, Erklären' },
+  { id: 'formeln', name: 'Formeln', icon: 'formel', view: formeln, gruppe: 'werkzeuge', text: 'Formelsammlung' },
+  { id: 'hausaufgaben', name: 'Hausaufgaben', icon: 'haken', view: hausaufgaben, gruppe: 'werkzeuge', text: 'Planer zum Abhaken' },
+  { id: 'stundenplan', name: 'Stundenplan', icon: 'kalender', view: stundenplan, gruppe: 'werkzeuge', text: 'Was ist morgen dran?' },
+  { id: 'gruppe', name: 'Gemeinsam', icon: 'gruppe', view: gruppe, gruppe: 'gruppe', nurKonto: true, text: 'Chat, Challenge, gemeinsame Stapel' },
+  { id: 'noten', name: 'Noten', icon: 'zeugnis', view: noten, gruppe: 'ich', text: 'Schnitt und Empfehlungen' },
+  { id: 'erfolge', name: 'Erfolge', icon: 'pokal', view: erfolge, gruppe: 'ich', text: 'Level, Abzeichen, Rückblick' },
+  { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, gruppe: 'ich', text: 'Lernverlauf' },
+  { id: 'einstellungen', name: 'Einstellungen', icon: 'einstellungen', view: einstellungen, gruppe: 'ich', text: 'Konto, Aussehen, Daten' },
+  { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, gruppe: 'ich', nurAdmin: true, text: 'Personen, KI, Gruppe' },
   { id: 'datenschutz', name: 'Datenschutz', icon: 'schild', view: datenschutz, versteckt: true },
-  { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, neben: true },
-  { id: 'einstellungen', name: 'Einstellungen', icon: 'einstellungen', view: einstellungen, neben: true },
 ];
 
 store.init();
@@ -44,14 +52,18 @@ konfigurieren(() => store.getState().settings);
 
 // ---------- Konto: Läuft die App auf dem eigenen Server mit Anmeldung? ----------
 const api = (pfad, opts = {}) => fetch(pfad, { credentials: 'same-origin', ...opts, headers: { 'content-type': 'application/json', 'x-lernheft': '1', ...(opts.headers || {}) } });
+const CACHE = 'lernheft.offline';
+const offlineCache = () => { try { return JSON.parse(localStorage.getItem(CACHE) || 'null'); } catch { return null; } };
 async function kontoPruefen() {
   try {
     const r = await api('/api/ich');
     if (!(r.headers.get('content-type') || '').includes('json')) return null; // reine Webseite ohne Server-Teil
-    if (r.status === 401) return 'abgemeldet';
+    if (r.status === 401) { try { localStorage.removeItem(CACHE); } catch { /* egal */ } return 'abgemeldet'; }
     return r.ok ? await r.json() : null;
   } catch {
-    return null;
+    // Kein Netz: mit der zuletzt geladenen Fassung weiterlernen (Flugmodus, U-Bahn …)
+    const c = offlineCache();
+    return c?.konto ? { ...c.konto, offline: true } : null;
   }
 }
 const konto = await kontoPruefen();
@@ -59,6 +71,7 @@ if (konto === 'abgemeldet') {
   document.getElementById('nav').hidden = true;
   const zeigeLogin = () => {
     const main = document.getElementById('inhalt');
+    if (location.hash.startsWith('#einladung-')) { main.replaceChildren(einladungSeite(location.hash.slice(11))); return; }
     if (location.hash === '#datenschutz') {
       const seite = datenschutzSeite(zeigeLogin);
       seite.prepend(h('a', { class: 'knopf knopf-leise zurueck', href: '#' }, icon('zurueck', 18), 'Zur Anmeldung'));
@@ -76,10 +89,14 @@ if (konto) {
   let daten = {};
   try {
     const r = await api('/api/daten');
-    daten = r.ok ? await r.json() : {};
-  } catch { /* leer starten */ }
+    daten = r.ok ? await r.json() : (offlineCache()?.daten || {});
+  } catch { daten = offlineCache()?.daten || {}; }
+  if (konto.offline) setTimeout(() => toast('Offline: Du lernst mit der gespeicherten Fassung. Alles wird abgeglichen, sobald du wieder Netz hast.'), 800);
+  const zwischenspeichern = (json) => { try { localStorage.setItem(CACHE, JSON.stringify({ konto: { name: konto.name, admin: konto.admin }, daten: JSON.parse(json) })); } catch { /* Speicher voll: egal */ } };
   const lokaleKarten = lokal.cards.length;
+  zwischenspeichern(JSON.stringify(daten));
   store.serverModus(daten, async (json) => {
+    zwischenspeichern(json);
     const r = await api('/api/daten', { method: 'PUT', body: json, keepalive: json.length < 60000 });
     if (r.status === 401) location.reload();
     if (!r.ok) throw new Error('Speichern fehlgeschlagen');
@@ -113,9 +130,19 @@ const nav = document.getElementById('nav');
 let aufraeumen = [];
 let ueberlagerung = null; // z. B. eine laufende Abfrage, die über dem Bereich liegt
 
+// Schnellstart vom Home-Bildschirm: #lernen startet sofort die fälligen Karten
+if (location.hash === '#lernen') {
+  setTimeout(() => {
+    const f = store.dueCards();
+    history.replaceState(null, '', '#start');
+    if (f.length) import('./views/lernen.js').then((m) => m.lernenStarten(ctx, { cardIds: f.slice(0, 40).map((c) => c.id), titel: 'Heute fällig' }));
+    else toast('Für heute ist alles wiederholt. 🎉');
+  }, 1500);
+}
+
 function bereich() {
   const id = location.hash.replace('#', '');
-  return BEREICHE.find((b) => b.id === id && (!b.nurAdmin || konto?.admin)) || BEREICHE[0];
+  return BEREICHE.find((b) => b.id === id && (!b.nurAdmin || konto?.admin) && (!b.nurKonto || konto)) || BEREICHE[0];
 }
 
 const ctx = {
@@ -146,7 +173,7 @@ const ctx = {
     await new Promise((r) => setTimeout(r, 300));
     try { await api('/api/abmelden', { method: 'POST' }); } catch { /* egal */ }
     // Auf gemeinsam genutzten Geräten nichts zurücklassen
-    try { localStorage.removeItem('lernheft.v1'); sessionStorage.clear(); } catch { /* egal */ }
+    try { localStorage.removeItem('lernheft.v1'); localStorage.removeItem(CACHE); sessionStorage.clear(); } catch { /* egal */ }
     try { const n = await caches.keys(); await Promise.all(n.map((k) => caches.delete(k))); } catch { /* egal */ }
     location.replace('/');
   },
@@ -182,14 +209,25 @@ function zeichnen() {
 }
 
 function navZeichnen(aktivId) {
+  const darf = (b) => !b.versteckt && (!b.nurAdmin || konto?.admin) && (!b.nurKonto || konto);
+  const link = (b, extra = '') => h('a', { class: extra, href: `#${b.id}`, 'aria-current': b.id === aktivId || (b.id === 'mehr' && !BEREICHE.find((x) => x.id === aktivId)?.unten) ? 'page' : null,
+    onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
+    b.id === 'scannen' ? h('span', { class: 'nav-scan' }, icon(b.icon, 26)) : icon(b.icon), h('span', null, b.name));
   nav.replaceChildren(
     h('a', { class: 'nav-marke', href: '#start', 'aria-label': 'Lernheft von Glenn, zum Start' }, 'Lernheft', h('small', null, 'von Glenn')),
-    h('ul', null, BEREICHE.filter((b) => (!b.nurAdmin || konto?.admin) && !b.versteckt).map((b) =>
-      h('li', { class: b.neben ? 'nav-neben' : '' },
-        h('a', { href: `#${b.id}`, 'aria-current': b.id === aktivId ? 'page' : null, onclick: () => { ueberlagerung = null; ctx.optionen = { neu: true }; if (b.id === aktivId) queueMicrotask(zeichnen); } },
-          b.id === 'scannen' ? h('span', { class: 'nav-scan' }, icon(b.icon, 26)) : icon(b.icon), h('span', null, b.name))))),
+    // Handy: fünf Punkte unten
+    h('ul', { class: 'nav-unten' }, BEREICHE.filter((b) => b.unten).map((b) => h('li', null, link(b)))),
+    // iPad/PC: Suche + Bereiche in Gruppen
+    h('div', { class: 'nav-seite' },
+      h('button', { class: 'nav-suche', onclick: () => sucheOeffnen(ctx) }, icon('lupe', 18), h('span', null, 'Suchen'), h('kbd', null, '⌘K')),
+      h('ul', null, h('li', null, link(BEREICHE[0]))),
+      GRUPPEN.map(([g, name]) => {
+        const l = BEREICHE.filter((b) => b.gruppe === g && darf(b));
+        return l.length > 0 && [h('p', { class: 'nav-gruppe' }, name), h('ul', null, l.map((b) => h('li', null, link(b))))];
+      })),
   );
 }
+addEventListener('keydown', (e) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); sucheOeffnen(ctx); } });
 
 // ---------- Kleine Effekte: Zahlen zählen hoch, Karten neigen sich ----------
 function effekte(wurzel) {
@@ -225,8 +263,10 @@ const dunkel = globalThis.matchMedia?.('(prefers-color-scheme: dark)');
 export function themeAnwenden() {
   const wahl = store.getState().settings.theme;
   const tafel = wahl === 'tafel' || (wahl === 'auto' && dunkel?.matches);
-  document.documentElement.dataset.theme = tafel ? 'tafel' : 'heft';
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', tafel ? '#1d2b27' : '#2440b3');
+  const thema = wahl === 'oled' ? 'oled' : tafel ? 'tafel' : 'heft';
+  document.documentElement.dataset.theme = thema;
+  document.documentElement.dataset.schrift = store.getState().settings.schrift || 'normal';
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', thema === 'oled' ? '#000000' : tafel ? '#1d2b27' : '#2440b3');
 }
 dunkel?.addEventListener?.('change', () => { themeAnwenden(); zeichnen(); });
 ctx.themeAnwenden = themeAnwenden;

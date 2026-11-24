@@ -292,3 +292,126 @@ export function allesVon(name) {
   const abos = lesen('push.json', {});
   if (abos[name]) { delete abos[name]; schreiben('push.json', abos); }
 }
+
+// ---------- Gruppen-Chat ----------
+export function chatLesen(seit = 0) {
+  return lesen('gruppenchat.json', []).filter((m) => m.zeit > seit).slice(-200);
+}
+export function chatSchreiben(von, text) {
+  const t = String(text || '').trim().slice(0, 1000);
+  if (!t) throw fehlerMit(400, 'Die Nachricht ist leer.');
+  const liste = lesen('gruppenchat.json', []);
+  const m = { id: crypto.randomUUID(), von, text: t, zeit: Date.now() };
+  liste.push(m);
+  schreiben('gruppenchat.json', liste.slice(-1000));
+  return m;
+}
+export function chatLoeschen(id, wer, admin) {
+  const liste = lesen('gruppenchat.json', []);
+  const m = liste.find((x) => x.id === id);
+  if (!m) return;
+  if (m.von !== wer && !admin) throw fehlerMit(403, 'Nur eigene Nachrichten löschen.');
+  schreiben('gruppenchat.json', liste.filter((x) => x.id !== id));
+}
+
+// ---------- Ankündigung, Challenge ----------
+export const gruppeLesen = () => lesen('gruppe.json', { ankuendigung: null, challengeZiel: 1000 });
+export function gruppeSetzen({ ankuendigung, challengeZiel }) {
+  const g = gruppeLesen();
+  if (ankuendigung !== undefined) g.ankuendigung = ankuendigung ? { text: String(ankuendigung).slice(0, 500), id: crypto.randomUUID(), zeit: Date.now() } : null;
+  if (challengeZiel !== undefined && Number(challengeZiel) > 0) g.challengeZiel = Math.min(100000, Math.round(Number(challengeZiel)));
+  schreiben('gruppe.json', g);
+  return g;
+}
+export function challenge() {
+  const r = rangliste();
+  const summe = r.reduce((s, x) => s + x.woche, 0);
+  const g = gruppeLesen();
+  return { ziel: g.challengeZiel, summe, aktive: r.filter((x) => x.woche > 0).length, personen: r.length };
+}
+
+// ---------- Admin-Übersicht (nur Zahlen, keine Inhalte) ----------
+export function adminUebersicht() {
+  const r = rangliste();
+  const konten = db.kontenListe();
+  return konten.map((k) => {
+    const d = db.datenLesen(k.name);
+    const x = r.find((y) => y.name === k.name) || {};
+    return { name: k.name, woche: x.woche || 0, serie: x.serie || 0, karten: (d.cards || []).length, stapel: (d.decks || []).length, kiMonat: k.kiMonat, letzterLogin: k.letzterLogin };
+  }).sort((a, b) => b.woche - a.woche);
+}
+
+// ---------- Einladungslinks ----------
+export function einladungAnlegen(name) {
+  const token = crypto.randomBytes(24).toString('base64url');
+  const liste = lesen('einladungen.json', {});
+  for (const [t, e] of Object.entries(liste)) if (e.bis < Date.now() || e.name === name) delete liste[t];
+  liste[crypto.createHash('sha256').update(token).digest('hex')] = { name, bis: Date.now() + 7 * 864e5 };
+  schreiben('einladungen.json', liste);
+  return token;
+}
+export function einladungEinloesen(token, passwort) {
+  const liste = lesen('einladungen.json', {});
+  const h = crypto.createHash('sha256').update(String(token || '')).digest('hex');
+  const e = liste[h];
+  if (!e || e.bis < Date.now()) throw fehlerMit(400, 'Dieser Einladungslink ist abgelaufen oder schon benutzt.');
+  if (String(passwort || '').length < 10) throw fehlerMit(400, 'Das Passwort braucht mindestens 10 Zeichen.');
+  if (String(passwort).toLowerCase().includes(e.name)) throw fehlerMit(400, 'Das Passwort darf deinen Benutzernamen nicht enthalten.');
+  db.passwortSetzen(e.name, passwort, false);
+  delete liste[h];
+  schreiben('einladungen.json', liste);
+  return e.name;
+}
+export function einladungPruefen(token) {
+  const e = lesen('einladungen.json', {})[crypto.createHash('sha256').update(String(token || '')).digest('hex')];
+  return e && e.bis > Date.now() ? e.name : null;
+}
+
+// ---------- Gemeinsame Stapel (alle Mitglieder können Karten hinzufügen) ----------
+const gsListe = () => lesen('gemeinsam.json', []);
+const darfGs = (g, wer, admin) => admin || g.von === wer || g.mitglieder.includes(wer);
+export function gsAlle(wer, admin) {
+  return gsListe().filter((g) => darfGs(g, wer, admin)).map(({ karten, ...r }) => ({ ...r, anzahl: karten.length }));
+}
+export function gsHolen(id, wer, admin) {
+  const g = gsListe().find((x) => x.id === id);
+  if (!g || !darfGs(g, wer, admin)) throw fehlerMit(404, 'Diesen gemeinsamen Stapel gibt es nicht.');
+  return g;
+}
+export function gsAnlegen(von, { name, fach, mitglieder }) {
+  const l = gsListe();
+  const g = { id: crypto.randomUUID(), von, name: String(name || 'Gemeinsamer Stapel').slice(0, 60), fach: String(fach || 'sonstiges').slice(0, 20),
+    mitglieder: (Array.isArray(mitglieder) ? mitglieder : []).map(String).filter((n) => n !== von && db.vorhanden(n)).slice(0, 100), karten: [], erstellt: Date.now() };
+  l.unshift(g);
+  schreiben('gemeinsam.json', l.slice(0, 200));
+  return g;
+}
+export function gsKarteDazu(id, wer, admin, { front, back, note }) {
+  const l = gsListe();
+  const g = l.find((x) => x.id === id);
+  if (!g || !darfGs(g, wer, admin)) throw fehlerMit(404, 'Diesen gemeinsamen Stapel gibt es nicht.');
+  const f = String(front || '').trim().slice(0, 600);
+  const b = String(back || '').trim().slice(0, 1500);
+  if (!f || !b) throw fehlerMit(400, 'Vorder- und Rückseite ausfüllen.');
+  if (g.karten.length >= 1000) throw fehlerMit(400, 'Der Stapel ist voll.');
+  g.karten.push({ id: crypto.randomUUID(), front: f, back: b, note: String(note || '').slice(0, 400), von: wer, zeit: Date.now() });
+  schreiben('gemeinsam.json', l);
+  return g;
+}
+export function gsKarteWeg(id, kid, wer, admin) {
+  const l = gsListe();
+  const g = l.find((x) => x.id === id);
+  if (!g || !darfGs(g, wer, admin)) throw fehlerMit(404, 'Diesen gemeinsamen Stapel gibt es nicht.');
+  const k = g.karten.find((x) => x.id === kid);
+  if (k && k.von !== wer && g.von !== wer && !admin) throw fehlerMit(403, 'Nur eigene Karten löschen.');
+  g.karten = g.karten.filter((x) => x.id !== kid);
+  schreiben('gemeinsam.json', l);
+  return g;
+}
+export function gsLoeschen(id, wer, admin) {
+  const l = gsListe();
+  const g = l.find((x) => x.id === id);
+  if (!g) return;
+  if (g.von !== wer && !admin) throw fehlerMit(403, 'Nur wer ihn angelegt hat, kann ihn löschen.');
+  schreiben('gemeinsam.json', l.filter((x) => x.id !== id));
+}

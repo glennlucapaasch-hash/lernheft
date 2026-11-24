@@ -144,6 +144,19 @@ async function api(req, res, pfad) {
     return senden(res, 200, { name: konto.name, admin: konto.admin }, { 'set-cookie': sitzungsCookie(token, 60 * 60 * 24 * 60) });
   }
 
+  if (pfad === '/api/einladung' && methode === 'GET') {
+    const name = extra.einladungPruefen(new URL(req.url, 'http://x').searchParams.get('t'));
+    return name ? senden(res, 200, { name }) : fehler(res, 404, 'Dieser Einladungslink ist abgelaufen oder schon benutzt.');
+  }
+  if (pfad === '/api/einladung' && methode === 'POST') {
+    if (db.zuVieleVersuche(ip(req))) return fehler(res, 429, 'Zu viele Versuche. Warte 15 Minuten.');
+    const { token, passwort } = await koerper(req, 10000);
+    try {
+      const name = extra.einladungEinloesen(token, passwort);
+      const t = db.sitzungAnlegen(name);
+      return senden(res, 200, { name }, { 'set-cookie': sitzungsCookie(t, 60 * 60 * 24 * 60) });
+    } catch (e) { db.fehlversuch(ip(req)); throw e; }
+  }
   if (pfad === '/api/kontakt' && methode === 'GET') { const e = db.einstellungen(); return senden(res, 200, { name: e.kontaktName || '', mail: e.kontaktMail || '', ort: e.kontaktOrt || '' }); }
   const token = cookies(req)[KEKS];
   const konto = token && db.sitzung(token);
@@ -196,6 +209,18 @@ async function api(req, res, pfad) {
   if (dm && dm[3] === 'beitreten' && methode === 'POST') return senden(res, 200, extra.duellBeitreten(dm[1], konto.name));
   if (dm && dm[3] === 'start' && methode === 'POST') return senden(res, 200, extra.duellStarten(dm[1], konto.name));
   if (dm && dm[3] === 'antwort' && methode === 'POST') return senden(res, 200, extra.duellAntworten(dm[1], konto.name, await koerper(req, 5000)));
+  if (pfad === '/api/gruppe' && methode === 'GET') return senden(res, 200, { ankuendigung: extra.gruppeLesen().ankuendigung, challenge: extra.challenge() });
+  if (pfad === '/api/gruppenchat' && methode === 'GET') return senden(res, 200, extra.chatLesen(Number(new URL(req.url, 'http://x').searchParams.get('seit')) || 0));
+  if (pfad === '/api/gruppenchat' && methode === 'POST') return senden(res, 200, extra.chatSchreiben(konto.name, (await koerper(req, 5000)).text));
+  const cm = /^\/api\/gruppenchat\/([\w-]+)$/.exec(pfad);
+  if (cm && methode === 'DELETE') { extra.chatLoeschen(cm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
+  if (pfad === '/api/gemeinsam' && methode === 'GET') return senden(res, 200, extra.gsAlle(konto.name, konto.admin));
+  if (pfad === '/api/gemeinsam' && methode === 'POST') return senden(res, 200, extra.gsAnlegen(konto.name, await koerper(req, 20000)));
+  const gsm = /^\/api\/gemeinsam\/([\w-]+)(\/karten(\/([\w-]+))?)?$/.exec(pfad);
+  if (gsm && !gsm[2] && methode === 'GET') return senden(res, 200, extra.gsHolen(gsm[1], konto.name, konto.admin));
+  if (gsm && !gsm[2] && methode === 'DELETE') { extra.gsLoeschen(gsm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
+  if (gsm && gsm[2] && !gsm[4] && methode === 'POST') return senden(res, 200, extra.gsKarteDazu(gsm[1], konto.name, konto.admin, await koerper(req, 20000)));
+  if (gsm && gsm[4] && methode === 'DELETE') return senden(res, 200, extra.gsKarteWeg(gsm[1], gsm[4], konto.name, konto.admin));
   if (pfad === '/api/rangliste' && methode === 'GET') return senden(res, 200, extra.rangliste());
   if (pfad === '/api/push' && methode === 'GET') return senden(res, 200, { schluessel: extra.vapidOeffentlich(), abo: extra.aboLesen(konto.name) });
   if (pfad === '/api/push' && methode === 'POST') return senden(res, 200, { abo: extra.aboSetzen(konto.name, await koerper(req, 20000)) });
@@ -233,6 +258,13 @@ async function api(req, res, pfad) {
       if (m[1] === konto.name) return fehler(res, 400, 'Du kannst dich nicht selbst löschen.');
       try { db.kontoLoeschen(m[1]); extra.allesVon(m[1]); return senden(res, 200, { ok: true }); }
       catch (e) { return fehler(res, 404, e.message); }
+    }
+    if (pfad === '/api/verwaltung/gruppe' && methode === 'PUT') return senden(res, 200, extra.gruppeSetzen(await koerper(req, 10000)));
+    if (pfad === '/api/verwaltung/uebersicht' && methode === 'GET') return senden(res, 200, extra.adminUebersicht());
+    const em = /^\/api\/verwaltung\/konten\/([a-z0-9._-]+)\/einladung$/.exec(pfad);
+    if (em && methode === 'POST') {
+      if (!db.vorhanden(em[1])) return fehler(res, 404, 'Diesen Namen gibt es nicht.');
+      return senden(res, 200, { name: em[1], token: extra.einladungAnlegen(em[1]) });
     }
     if (pfad === '/api/verwaltung/sicherung' && methode === 'GET') {
       return senden(res, 200, extra.sicherungDaten(), { 'content-disposition': `attachment; filename="lernheft-sicherung-${new Date().toISOString().slice(0, 10)}.json"` });

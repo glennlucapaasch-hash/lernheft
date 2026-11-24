@@ -103,6 +103,14 @@ function kontenBereich(ctx, ich) {
               try { zugangZeigen('Neues Passwort', [await api(`/api/verwaltung/konten/${k.name}/passwort`, { method: 'POST' })]); }
               catch (err) { toast(err.message, 'fehler'); }
             } }, 'Neues Passwort'),
+            h('button', { class: 'knopf knopf-mini', onclick: async () => {
+              try {
+                const { token } = await api(`/api/verwaltung/konten/${k.name}/einladung`, { method: 'POST' });
+                const text = `Hallo ${k.name}! Hier ist dein Zugang zum Lernheft: ${location.origin}/#einladung-${token}\nÖffne den Link und leg dein eigenes Passwort fest. Der Link gilt 7 Tage.`;
+                modal('Einladungslink', [h('p', null, `Damit legt ${k.name} das Passwort selbst fest. Der Link gilt 7 Tage und nur einmal.`), h('textarea', { rows: '4', readonly: true }, text),
+                  h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', onclick: async () => { try { await navigator.clipboard.writeText(text); toast('Kopiert – jetzt verschicken.'); } catch { toast('Kopieren ging nicht.', 'fehler'); } } }, 'Nachricht kopieren'))]);
+              } catch (err) { toast(err.message, 'fehler'); }
+            } }, 'Einladungslink'),
             k.name !== ich.name && h('button', { class: 'knopf knopf-mini knopf-gefahr-leise', onclick: async () => {
               if (!(await nachfragen(`${k.name} löschen?`, `Der Zugang und alle Karteikarten, Chats und Klausuren von ${k.name} werden gelöscht. Das lässt sich nicht rückgängig machen.`, 'Löschen', { gefahr: true }))) return;
               try { await api(`/api/verwaltung/konten/${k.name}`, { method: 'DELETE' }); toast(`${k.name} gelöscht.`); neuLaden(ctx); }
@@ -126,6 +134,24 @@ function kontaktBereich(ctx) {
     h('div', { class: 'reihe' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Speichern'), h('a', { class: 'knopf', href: '#datenschutz' }, 'Datenschutzerklärung ansehen')));
 }
 
+function gruppeBereich(ctx) {
+  const text = h('textarea', { rows: '3', maxlength: '500', placeholder: 'z. B. Neue Vokabeln für Unit 4 sind geteilt! 🎉' });
+  const ziel = h('input', { type: 'number', min: '50', max: '100000', step: '50', placeholder: '1000' });
+  const tabelle = h('div', { class: 'tabelle-rollen' }, h('p', { class: 'hinweis' }, 'Lade …'));
+  api('/api/verwaltung/uebersicht').then((l) => tabelle.replaceChildren(h('table', { class: 'konten-tabelle' },
+    h('thead', null, h('tr', null, ['Name', 'Abfragen 7 T.', 'Serie', 'Karten', 'KI Monat'].map((t) => h('th', { scope: 'col' }, t)))),
+    h('tbody', null, l.map((k) => h('tr', null, h('th', { scope: 'row' }, k.name), h('td', null, String(k.woche)), h('td', null, String(k.serie)), h('td', null, String(k.karten)), h('td', null, String(k.kiMonat)))))))).catch(() => {});
+  return h('section', { class: 'blatt' },
+    h('h2', null, 'Gruppe'),
+    h('h3', null, 'Aktivität (nur Zahlen, keine Inhalte)'), tabelle,
+    h('h3', null, 'Ankündigung an alle'),
+    h('form', { onsubmit: async (e) => { e.preventDefault(); try { await api('/api/verwaltung/gruppe', { method: 'PUT', body: { ankuendigung: text.value.trim() || null } }); toast(text.value.trim() ? 'Ankündigung veröffentlicht.' : 'Ankündigung entfernt.'); text.value = ''; } catch (err) { toast(err.message, 'fehler'); } } },
+      text, h('div', { class: 'reihe' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Veröffentlichen'), h('span', { class: 'hinweis' }, 'Leer lassen und veröffentlichen = Ankündigung entfernen.'))),
+    h('h3', null, 'Wochen-Challenge'),
+    h('form', { class: 'reihe', onsubmit: async (e) => { e.preventDefault(); try { await api('/api/verwaltung/gruppe', { method: 'PUT', body: { challengeZiel: ziel.value } }); toast('Ziel gespeichert.'); } catch (err) { toast(err.message, 'fehler'); } } },
+      feld('Ziel: Karten pro Woche für alle zusammen', ziel), h('button', { class: 'knopf', type: 'submit' }, 'Speichern')));
+}
+
 function sicherungBereich() {
   return h('section', { class: 'blatt' },
     h('h2', null, 'Sicherung'),
@@ -144,5 +170,5 @@ export function verwaltung(ctx) {
     ui.fehler && h('div', { class: 'blatt meldung meldung-fehler', role: 'alert' }, h('p', null, ui.fehler)),
     !ui.daten
       ? h('div', { class: 'blatt warten', role: 'status' }, h('p', null, 'Lade …'))
-      : [kontenBereich(ctx, ich), kiBereich(ctx), kontaktBereich(ctx), sicherungBereich()]);
+      : [kontenBereich(ctx, ich), gruppeBereich(ctx), kiBereich(ctx), kontaktBereich(ctx), sicherungBereich()]);
 }

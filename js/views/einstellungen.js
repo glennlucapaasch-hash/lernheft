@@ -189,7 +189,14 @@ export function einstellungen(ctx) {
         { wert: 'auto', titel: 'Automatisch', text: 'Wie dein Gerät eingestellt ist' },
         { wert: 'heft', titel: 'Heft', text: 'Hell, wie Karopapier' },
         { wert: 'tafel', titel: 'Tafel', text: 'Dunkel, wie Kreide auf der Tafel' },
-      ], e.theme, (v) => { store.setSettings({ theme: v }); ctx.themeAnwenden(); })),
+        { wert: 'oled', titel: 'Schwarz (OLED)', text: 'Ganz schwarz – spart Akku auf dem iPhone' },
+      ], e.theme, (v) => { store.setSettings({ theme: v }); ctx.themeAnwenden(); }),
+      h('h3', null, 'Schriftgröße'),
+      auswahl('schrift', [
+        { wert: 'normal', titel: 'Normal' }, { wert: 'gross', titel: 'Groß' }, { wert: 'sehrgross', titel: 'Sehr groß' },
+      ], e.schrift || 'normal', (v) => { store.setSettings({ schrift: v }); ctx.themeAnwenden(); }),
+      h('h3', null, 'Lernhaustier'),
+      feld('Name', h('input', { type: 'text', value: e.haustierName || 'Pixi', maxlength: '20', onchange: (ev) => store.setSettings({ haustierName: ev.target.value.trim() || 'Pixi' }) }))),
 
     mitKonto && erinnerungBereich(ctx),
     mitKonto ? kontoBereich(ctx) : h('section', { class: 'blatt' },

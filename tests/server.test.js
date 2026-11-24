@@ -104,3 +104,25 @@ test('Server: Sicherheits-Header, Bilder prüfen, Konto selbst löschen', async 
   const kontakt = await (await fetch(`${URL_}/api/kontakt`)).json();
   assert.equal(typeof kontakt.name, 'string');
 });
+
+test('Server: Einladung, Gruppen-Chat, gemeinsame Stapel, Challenge', async () => {
+  const pw = (n) => /\S+\s+(\S+)/.exec(execFileSync(process.execPath, ['server/benutzer.js', 'passwort', n], { env: { ...process.env, DATEN: daten } }).toString().trim())[1];
+  execFileSync(process.execPath, ['server/benutzer.js', 'anlegen', 'emil', 'fritz'], { env: { ...process.env, DATEN: daten } });
+  const glenn = keks(await anmelden('glenn', pw('glenn')));
+  const { token } = await (await fetch(`${URL_}/api/verwaltung/konten/emil/einladung`, mit(glenn, { method: 'POST' }))).json();
+  assert.equal((await (await fetch(`${URL_}/api/einladung?t=${token}`)).json()).name, 'emil');
+  assert.equal((await fetch(`${URL_}/api/einladung`, mit('', { method: 'POST', body: JSON.stringify({ token, passwort: 'kurz' }) }))).status, 400);
+  const r = await fetch(`${URL_}/api/einladung`, mit('', { method: 'POST', body: JSON.stringify({ token, passwort: 'Sonnenblume-2026' }) }));
+  assert.equal(r.status, 200);
+  const emil = keks(r);
+  assert.equal((await fetch(`${URL_}/api/einladung`, mit('', { method: 'POST', body: JSON.stringify({ token, passwort: 'Sonnenblume-2027' }) }))).status, 400);
+  await fetch(`${URL_}/api/gruppenchat`, mit(emil, { method: 'POST', body: JSON.stringify({ text: 'Hallo Gruppe' }) }));
+  assert.equal((await (await fetch(`${URL_}/api/gruppenchat`, mit(glenn))).json()).at(-1).text, 'Hallo Gruppe');
+  const gs = await (await fetch(`${URL_}/api/gemeinsam`, mit(emil, { method: 'POST', body: JSON.stringify({ name: 'Unit 4', fach: 'englisch', mitglieder: ['fritz'] }) }))).json();
+  const fritz = keks(await anmelden('fritz', pw('fritz')));
+  await fetch(`${URL_}/api/gemeinsam/${gs.id}/karten`, mit(fritz, { method: 'POST', body: JSON.stringify({ front: 'tree', back: 'der Baum' }) }));
+  assert.equal((await (await fetch(`${URL_}/api/gemeinsam/${gs.id}`, mit(emil))).json()).karten.length, 1);
+  const ch = await (await fetch(`${URL_}/api/gruppe`, mit(emil))).json();
+  assert.ok(ch.challenge.ziel > 0);
+  assert.equal((await fetch(`${URL_}/api/verwaltung/uebersicht`, mit(emil))).status, 403);
+});

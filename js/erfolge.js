@@ -66,7 +66,7 @@ export const ABZEICHEN = [
 
 const TITEL = ['Neuling', 'Lernling', 'Fleißbiene', 'Wissensjäger', 'Aufsteiger', 'Kenner', 'Profi', 'Experte', 'Meister', 'Genie', 'Legende'];
 export function level(w = werte()) {
-  const xp = w.abfragen + w.richtig + w.klausuren * 25 + w.notizen * 10 + w.blitz * 2 + w.memory * 5 + w.duelle * 15 + w.duellSiege * 40;
+  const xp = (store.getState().bonusXp || 0) + w.abfragen + w.richtig + w.klausuren * 25 + w.notizen * 10 + w.blitz * 2 + w.memory * 5 + w.duelle * 15 + w.duellSiege * 40;
   const lvl = Math.max(1, Math.floor((1 + Math.sqrt(1 + (4 * xp) / 30)) / 2));
   const start = 30 * lvl * (lvl - 1);
   const ziel = 30 * (lvl + 1) * lvl;

@@ -4,6 +4,8 @@ import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { THEMEN, STUFEN, QUELLE } from '../themen-daten.js';
 import { kiVerfuegbar, themaKarten } from '../ai.js';
+import { mindmap } from './kiextras.js';
+import { sprechen, kannSprechen } from '../dom.js';
 
 const FACH_REIHE = ['mathe', 'deutsch', 'englisch', 'franzoesisch', 'spanisch', 'biologie', 'chemie', 'physik', 'geschichte', 'pgw', 'geografie', 'latein', 'informatik'];
 const ui = { suche: '', fach: 'alle', stufe: 'alle', offen: null, laden: false };
@@ -34,10 +36,14 @@ function detail(ctx, t) {
           ctx.go('karten', { deckId: deck.id });
         } catch (e) { ui.laden = false; toast(e.message, 'fehler'); ctx.refresh(); }
       } }, icon('karten', 18), ui.laden ? 'Ich erstelle Übungen …' : 'Übungskarten dazu erstellen'),
+      h('button', { class: 'knopf', onclick: () => mindmap(t.titel, `${t.text}\n${t.beispiel}`) }, '🧠 Mindmap'),
+      kannSprechen() && h('button', { class: 'knopf', onclick: () => sprechen(`${t.titel}. ${t.text} Beispiel: ${t.beispiel}. Merke: ${t.merke}`, t.fach === 'englisch' && t.stufe === '11/12' ? 'en-GB' : 'de-DE') }, icon('ton', 18), 'Vorlesen'),
+      h('a', { class: 'knopf', href: `https://www.youtube.com/results?search_query=${encodeURIComponent(`${t.titel} ${FAECHER[t.fach].name} erklärt`)}`, target: '_blank', rel: 'noopener' }, '▶️ Erklärvideos'),
       h('button', { class: 'knopf', onclick: () => ctx.go('chat', { frage: `Erklär mir bitte das Thema „${t.titel}“ (${f.name}, Klasse ${t.stufe}) noch einmal ausführlicher, mit einem Beispiel und einer Aufgabe zum Selbermachen.` }) }, icon('chat', 18), 'Lernhelfer fragen')));
 }
 
 export function themen(ctx) {
+  if (ctx.optionen?.thema) ui.offen = ctx.optionen.thema;
   const q = ohneAkzent(ui.suche.trim());
   const treffer = liste.filter((t) =>
     (ui.fach === 'alle' || t.fach === ui.fach) && (ui.stufe === 'alle' || t.stufe === ui.stufe) &&

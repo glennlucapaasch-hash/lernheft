@@ -2,6 +2,7 @@
 import { h, icon, toast, mehrzahl } from '../dom.js';
 import * as store from '../store.js';
 import { shuffle, mcOptionen } from '../exam.js';
+import { spielGespielt } from '../extras.js';
 
 const ARTIKEL = /^(der|die|das|the|to|a|an|le|la|les|l'|un|une|el|los|las|una|un)\s+/i;
 export function wortListe(deckId) {
@@ -37,7 +38,7 @@ export function wortregen(ctx, deckId) {
   function standZeigen() { stand.replaceChildren(h('strong', null, mehrzahl(regen.punkte, 'Wort', 'Wörter')), h('span', { class: 'regen-leben', 'aria-label': `${regen.leben} Leben` }, '❤️'.repeat(regen.leben) + '🤍'.repeat(3 - regen.leben))); }
   function naechstes() {
     clearTimeout(timer);
-    if (regen.leben <= 0) { regen.an = false; regen.ende = regen.punkte; regen.neu = rekord('wortregen', regen.punkte); ctx.refresh(); return; }
+    if (regen.leben <= 0) { regen.an = false; regen.ende = regen.punkte; regen.neu = rekord('wortregen', regen.punkte); spielGespielt(); ctx.refresh(); return; }
     const c = karten[Math.floor(Math.random() * karten.length)];
     const opts = mcOptionen(c.back, karten.map((x) => x.back)) || [c.back];
     const wort = h('div', { class: 'regen-wort', style: `left:${10 + Math.random() * 55}%;animation-duration:${regen.dauer}ms` }, c.front);
@@ -72,7 +73,7 @@ export function buchstabensalat(ctx, deckId) {
   const ziel = s.wort.wort;
   const eingabe = s.gewaehlt.map((n) => s.teile[n].b).join('');
   const falsch = eingabe.length === ziel.length && eingabe.toLowerCase() !== ziel.toLowerCase();
-  if (eingabe.length === ziel.length && !falsch && !s.geloest) { s.geloest = true; s.serie += 1; rekord('salat', s.serie); }
+  if (eingabe.length === ziel.length && !falsch && !s.geloest) { s.geloest = true; s.serie += 1; rekord('salat', s.serie); spielGespielt(); }
   const neu = () => { salat.wort = null; ctx.refresh(); };
   return h('div', { class: 'spiel salat' },
     h('div', { class: 'spiel-kopf' }, h('span', { class: 'spiel-stand' }, `Serie: ${s.serie} · Rekord ${store.getState().spiele.salat || 0}`)),
@@ -128,7 +129,7 @@ export function galgenmaennchen(ctx, deckId) {
   const verloren = g.fehler >= TEILE;
   const sonder = [...new Set([...ziel.toLowerCase()].filter((c) => /\p{L}/u.test(c) && !/[a-z]/.test(c)))];
   const tasten = [...'abcdefghijklmnopqrstuvwxyz', ...sonder];
-  if (geloest && !g.gezaehlt) { g.gezaehlt = true; const s = store.getState().spiele; s.galgen = (s.galgen || 0) + 1; store.save(); }
+  if (geloest && !g.gezaehlt) { g.gezaehlt = true; const s = store.getState().spiele; s.galgen = (s.galgen || 0) + 1; store.save(); spielGespielt(); }
   return h('div', { class: 'spiel galgen' },
     h('div', { class: 'galgen-oben' },
       galgenBild(g.fehler),

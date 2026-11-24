@@ -60,6 +60,12 @@ const ICONS = {
   buch: '<path d="M12 6.500C10 5 7 4.500 3.500 5v13c3.500-.500 6.500 0 8.500 1.500 2-1.500 5-2 8.500-1.500V5C17 4.500 14 5 12 6.500z"/><path d="M12 6.500v13"/>',
   mikro: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.500 11a6.500 6.500 0 0 0 13 0M12 17.500V21M8.500 21h7"/>',
   zeugnis: '<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h3"/><circle cx="16" cy="16.500" r="1.500"/>',
+  raster: '<rect x="4" y="4" width="6.500" height="6.500" rx="1.500"/><rect x="13.500" y="4" width="6.500" height="6.500" rx="1.500"/><rect x="4" y="13.500" width="6.500" height="6.500" rx="1.500"/><rect x="13.500" y="13.500" width="6.500" height="6.500" rx="1.500"/>',
+  lupe: '<circle cx="10.500" cy="10.500" r="6"/><path d="M15 15l5 5"/>',
+  formel: '<path d="M5 19c3 0 3-14 7-14M7 11h7"/><path d="M14 13l5 6M19 13l-5 6"/>',
+  haken: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12.500l3 3 5-6"/>',
+  gruppe: '<circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.500"/><path d="M3.500 19c0-3 2.500-5 5.500-5s5.500 2 5.500 5M14.500 15c2.500-.500 6 .500 6 4"/>',
+  lautsprecher: '<path d="M4 9.500v5h3.500L12 18V6L7.500 9.500z"/><path d="M15.500 9a4 4 0 0 1 0 6"/>',
   uhr: '<circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/>',
 };
 

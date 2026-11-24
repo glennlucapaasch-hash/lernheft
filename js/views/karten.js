@@ -7,6 +7,8 @@ import { stapelKachel } from './start.js';
 import { bildAlsDaten } from '../bild.js';
 import { istServerModus, kiVerfuegbar, kartenPruefen } from '../ai.js';
 import { sendenDialog } from './senden.js';
+import { saetzeUeben, wortfelder } from './kiextras.js';
+import { druckenStapel } from './drucken.js';
 
 const serverApi = async (pfad, opts = {}) => {
   const r = await fetch(pfad, { credentials: 'same-origin', ...opts, headers: { 'content-type': 'application/json', 'x-lernheft': '1' } });
@@ -145,6 +147,17 @@ function listenDialog(ctx, deck) {
     const n = listeLesen(text.value).length;
     zaehler.textContent = n ? `${mehrzahl(n, 'Karte', 'Karten')} erkannt.` : 'Noch keine Karten erkannt.';
   } });
+  const datei = h('input', { type: 'file', accept: '.txt,.csv,.tsv,text/plain,text/csv', onchange: async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    let t = await f.text();
+    // Anki-Export: Kommentarzeilen und HTML entfernen; CSV mit ; oder , → Tab
+    t = t.split(/\r?\n/).filter((z) => !z.startsWith('#')).map((z) => z.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')).join('\n');
+    if (!t.includes('\t') && /;/.test(t)) t = t.replace(/;/g, '\t');
+    else if (!t.includes('\t') && /\.csv$/i.test(f.name)) t = t.replace(/,/g, '\t');
+    text.value = t;
+    text.dispatchEvent(new Event('input'));
+  } });
   const zu = modal('Liste einfügen',
     h('form', { onsubmit: (e) => {
       e.preventDefault();
@@ -158,6 +171,9 @@ function listenDialog(ctx, deck) {
     } },
       feld('Eine Karte pro Zeile', text, 'Trenne Vorder- und Rückseite mit = oder einem Bindestrich mit Leerzeichen. Tabellen aus Word oder Excel kannst du direkt einfügen.'),
       zaehler,
+      h('details', null, h('summary', null, 'Aus Quizlet oder Anki importieren'),
+        h('p', { class: 'hinweis' }, 'Quizlet: Set öffnen → „…“ → Exportieren → Text kopieren und oben einfügen. Anki: Datei → Exportieren → „Notizen als Text“ (.txt) und hier auswählen. CSV-Dateien gehen auch.'),
+        datei),
       h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Karten hinzufügen'))));
 }
 
@@ -296,6 +312,9 @@ function detail(ctx, deck) {
     h('div', { class: 'reihe werkzeuge' },
       h('button', { class: 'knopf', onclick: () => kartenDialog(ctx, deck) }, icon('plus', 18), 'Karte'),
       h('button', { class: 'knopf', onclick: () => listenDialog(ctx, deck) }, 'Liste einfügen'),
+      fach.lang && alle.length >= 2 && h('button', { class: 'knopf', onclick: () => saetzeUeben(ctx, deck) }, '💬 Sätze üben'),
+      fach.lang && alle.length >= 6 && h('button', { class: 'knopf', onclick: () => wortfelder(ctx, deck) }, '🗂️ Wortfelder'),
+      alle.length > 0 && h('button', { class: 'knopf', onclick: () => druckenStapel(deck) }, '🖨️ Drucken'),
       pruefung.laeuft.has(deck.id)
         ? h('span', { class: 'pruef-laeuft', role: 'status' }, 'KI prüft die Karten …')
         : alle.length > 0 && h('button', { class: 'knopf', onclick: () => kartenPruefenLassen(ctx, deck.id, alle) }, '✓ Mit KI prüfen'),

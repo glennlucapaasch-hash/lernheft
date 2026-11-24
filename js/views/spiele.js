@@ -5,6 +5,7 @@ import { FAECHER } from '../store.js';
 import { shuffle, mcOptionen } from '../exam.js';
 import { istServerModus } from '../ai.js';
 import { duell } from './duell.js';
+import { spielGespielt } from '../extras.js';
 import { wortregen, buchstabensalat, galgenmaennchen } from './wortspiele.js';
 
 const ui = { tab: null, deckId: '', memory: null, blitz: null, rang: null, rangLaden: false };
@@ -46,7 +47,7 @@ function memory(ctx) {
       if (a.id === b.id) {
         m.gefunden.add(a.id);
         m.offen = [];
-        if (m.gefunden.size * 2 === m.teile.length) { m.ende = Date.now(); store.getState().spiele.memory = (store.getState().spiele.memory || 0) + 1; store.save(); }
+        if (m.gefunden.size * 2 === m.teile.length) { m.ende = Date.now(); store.getState().spiele.memory = (store.getState().spiele.memory || 0) + 1; store.save(); spielGespielt(); }
       } else {
         m.sperre = true;
         setTimeout(() => { m.offen = []; m.sperre = false; if (location.hash === '#spiele') ctx.refresh(); }, 1000);
@@ -120,6 +121,7 @@ function blitz(ctx) {
       b.phase = 'ende';
       b.alterRekord = store.getState().spiele.blitz || 0;
       if (b.punkte > b.alterRekord) { store.getState().spiele.blitz = b.punkte; store.save(); }
+      spielGespielt();
       ctx.refresh();
     }
   }, 200);

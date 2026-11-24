@@ -5,6 +5,8 @@ import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { kiVerfuegbar, stoffErkennen, istServerModus } from '../ai.js';
 import { sendenDialog, sendenApi } from './senden.js';
+import { zusammenfassung, lueckentext } from './kiextras.js';
+import { sprechen, kannSprechen } from '../dom.js';
 
 const B = 1000;           // logische Blattbreite
 const SEITE = 1414;       // logische Seitenhöhe (A4-Verhältnis)
@@ -439,6 +441,9 @@ function editor(ctx, n) {
       h('label', { class: 'schalter-zeile' }, stiftSchalter, h('span', null, h('strong', null, 'Nur mit dem Stift schreiben'), h('small', null, 'Finger und Handballen zeichnen dann nicht, sondern scrollen. Schaltet sich ein, sobald du den Apple Pencil benutzt.'))),
       h('div', { class: 'reihe' },
         h('button', { class: 'knopf', onclick: () => { zu(); karten(); } }, icon('karten', 18), 'Karteikarten daraus machen'),
+        h('button', { class: 'knopf', onclick: async () => { zu(); const b = []; for (let i = 0; i < Math.min(n.seiten, 4); i++) b.push(await seitenBild(n, i)); zusammenfassung(ctx, n, striche.length ? b : []); } }, '✨ Zusammenfassen'),
+        h('button', { class: 'knopf', onclick: async () => { zu(); const b = []; for (let i = 0; i < Math.min(n.seiten, 4); i++) b.push(await seitenBild(n, i)); lueckentext(ctx, n, striche.length ? b : []); } }, '🧩 Lückentext'),
+        n.text && kannSprechen() && h('button', { class: 'knopf', onclick: () => { zu(); sprechen(n.text, 'de-DE'); toast('Ich lese den getippten Text vor.'); } }, icon('ton', 18), 'Vorlesen'),
         h('button', { class: 'knopf', onclick: () => { zu(); teilen(); } }, 'Als Bild teilen'),
         istServerModus() && h('button', { class: 'knopf', onclick: () => { zu(); sendenDialog({ titel: `„${n.titel || 'Notiz'}“ schicken`, beschreibung: 'Die Empfänger bekommen eine Kopie deiner Notiz in ihre Notizen.', daten: { typ: 'notiz', name: n.titel || 'Notiz', fach: n.fach, notiz: { papier: n.papier, seiten: n.seiten, text: n.text, striche } } }); } }, icon('teilen', 18), 'Schicken'),
         h('button', { class: 'knopf', onclick: () => { n.seiten += 1; groesse(); speichern(); zu(); } }, icon('plus', 18), 'Seite anhängen')),
@@ -477,6 +482,7 @@ function editor(ctx, n) {
 
 export function notizen(ctx) {
   if (ctx.optionen?.neu) ui.id = null;
+  if (ctx.optionen?.notiz) ui.id = ctx.optionen.notiz;
   const n = ui.id && finden(ui.id);
   if (!n) ui.id = null;
   return n ? editor(ctx, n) : uebersicht(ctx);

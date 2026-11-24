@@ -568,3 +568,63 @@ export async function klausurplanErkennen(bilder, faecher) {
     .filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t.datum) && !Number.isNaN(new Date(`${t.datum}T00:00:00`).getTime()) && t.titel)
     .sort((a, b) => a.datum.localeCompare(b.datum));
 }
+
+export async function stundenplanErkennen(bilder, faecher) {
+  const r = await frage({
+    bilder,
+    anweisung: `Auf dem Foto ist ein Stundenplan. Gib für Montag bis Freitag die Fächer in der Reihenfolge der Stunden an (Doppelstunden nur einmal). Nutze nur diese Kürzel: ${faecher.join(', ')}. Fächer, die nicht passen (z. B. Sport, Kunst, Musik), nimm als „sonstiges“. Erfinde nichts.`,
+    schema: { type: 'object', properties: { montag: { type: 'array', items: { type: 'string' } }, dienstag: { type: 'array', items: { type: 'string' } }, mittwoch: { type: 'array', items: { type: 'string' } }, donnerstag: { type: 'array', items: { type: 'string' } }, freitag: { type: 'array', items: { type: 'string' } } }, required: ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag'] },
+  });
+  return ['montag', 'dienstag', 'mittwoch', 'donnerstag', 'freitag'].map((t) => (Array.isArray(r[t]) ? r[t] : []).map((f) => (faecher.includes(f) ? f : 'sonstiges')).slice(0, 12));
+}
+
+// ---------- KI-Extras ----------
+export async function notizZusammenfassen(bilder, text) {
+  const r = await frage({
+    bilder,
+    maxTokens: 3000,
+    anweisung: 'Das ist eine handschriftliche Schulnotiz' + (text ? ` mit diesem getippten Text: ${text}` : '') + '. Lies sie und schreib eine saubere, gut gegliederte Zusammenfassung zum Wiederholen: kurze Abschnitte mit Überschrift und Stichpunkten (mit „–“), die wichtigsten Begriffe, am Ende 3 Merksätze. Bleib bei dem, was in der Notiz steht. ' + MATHE_STIL,
+    schema: { type: 'object', properties: { titel: { type: 'string' }, zusammenfassung: { type: 'string' } }, required: ['zusammenfassung'] },
+  });
+  return { titel: txt(r.titel, 80), text: txt(r.zusammenfassung, 6000) };
+}
+
+export async function lueckentextErzeugen(bilder, text) {
+  const r = await frage({
+    bilder,
+    maxTokens: 3000,
+    anweisung: 'Mach aus dieser Schulnotiz' + (text ? ` (getippter Teil: ${text})` : '') + ' einen Lückentext zum Üben: 6 bis 10 Sätze, die den Inhalt wiedergeben. In jedem Satz ist genau ein wichtiger Fachbegriff die Lücke. Gib jeden Satz mit ___ an der Stelle der Lücke an und die richtige Lösung. Bleib beim Inhalt der Notiz.',
+    schema: { type: 'object', properties: { saetze: { type: 'array', items: { type: 'object', properties: { satz: { type: 'string' }, loesung: { type: 'string' } }, required: ['satz', 'loesung'] } } }, required: ['saetze'] },
+  });
+  return (Array.isArray(r.saetze) ? r.saetze : []).map((s) => ({ satz: txt(s?.satz, 400), loesung: txt(s?.loesung, 80) })).filter((s) => s.satz.includes('___') && s.loesung).slice(0, 12);
+}
+
+export async function saetzeErzeugen(vokabeln, sprache) {
+  const liste = vokabeln.map((v) => `${v.front} = ${v.back}`).join('\n');
+  const r = await frage({
+    maxTokens: 3000,
+    anweisung: `Schreib zu diesen Vokabeln je einen kurzen, alltagsnahen Beispielsatz auf ${sprache} (Schulniveau, passende Grammatik) und die deutsche Übersetzung. Jeder Satz enthält genau die Vokabel.\n\n${liste}`,
+    schema: { type: 'object', properties: { saetze: { type: 'array', items: { type: 'object', properties: { fremd: { type: 'string' }, deutsch: { type: 'string' } }, required: ['fremd', 'deutsch'] } } }, required: ['saetze'] },
+  });
+  return (Array.isArray(r.saetze) ? r.saetze : []).map((s) => ({ fremd: txt(s?.fremd, 300), deutsch: txt(s?.deutsch, 300) })).filter((s) => s.fremd && s.deutsch);
+}
+
+export async function mindmapErzeugen(thema, kontext) {
+  const r = await frage({
+    maxTokens: 2500,
+    anweisung: `Erstelle eine Mindmap zum Schulthema „${thema}“. Ein Zentrum, 4 bis 6 Hauptäste mit kurzen Begriffen (höchstens 3 Wörter), an jedem Ast 2 bis 4 Unterpunkte (höchstens 5 Wörter). ${kontext ? `Grundlage:\n${kontext}` : ''}`,
+    schema: { type: 'object', properties: { zentrum: { type: 'string' }, aeste: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, punkte: { type: 'array', items: { type: 'string' } } }, required: ['name', 'punkte'] } } }, required: ['zentrum', 'aeste'] },
+  });
+  return { zentrum: txt(r.zentrum, 40) || thema, aeste: (Array.isArray(r.aeste) ? r.aeste : []).slice(0, 7).map((a) => ({ name: txt(a?.name, 40), punkte: (Array.isArray(a?.punkte) ? a.punkte : []).map((p) => txt(p, 50)).filter(Boolean).slice(0, 5) })).filter((a) => a.name) };
+}
+
+export async function wortfelderBilden(vokabeln) {
+  const liste = vokabeln.map((v, i) => `#${i} ${v.front} = ${v.back}`).join('\n');
+  const r = await frage({
+    maxTokens: 3000,
+    anweisung: `Sortiere diese Vokabeln in 3 bis 7 sinnvolle Wortfelder (z. B. „Schule“, „Familie“, „Verben der Bewegung“). Jede Vokabel kommt in genau eine Gruppe. Gib die Nummern an.\n\n${liste}`,
+    schema: { type: 'object', properties: { gruppen: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, nummern: { type: 'array', items: { type: 'integer' } } }, required: ['name', 'nummern'] } } }, required: ['gruppen'] },
+  });
+  const gesehen = new Set();
+  return (Array.isArray(r.gruppen) ? r.gruppen : []).map((g) => ({ name: txt(g?.name, 40), karten: (Array.isArray(g?.nummern) ? g.nummern : []).filter((n) => vokabeln[n] && !gesehen.has(n) && gesehen.add(n)).map((n) => vokabeln[n]) })).filter((g) => g.name && g.karten.length);
+}

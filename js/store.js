@@ -40,6 +40,10 @@ function leer() {
     termine: [],
     spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0 },
     abzeichen: {},
+    hausaufgaben: [],
+    stundenplan: { tage: [[], [], [], [], []] },
+    aufgabenErledigt: {},
+    bonusXp: 0,
     noten: [],
     notenEinst: { system: 'noten', muendlich: 60, faecher: {} },
   };
@@ -78,6 +82,10 @@ function uebernehmen(daten) {
     spiele: { blitz: 0, memory: 0, duellSiege: 0, duelle: 0, ...(d.spiele || {}) },
     abzeichen: d.abzeichen && typeof d.abzeichen === 'object' ? d.abzeichen : {},
     lernzeit: d.lernzeit && typeof d.lernzeit === 'object' ? d.lernzeit : {},
+    hausaufgaben: Array.isArray(d.hausaufgaben) ? d.hausaufgaben.filter((x) => x && x.id) : [],
+    stundenplan: d.stundenplan?.tage?.length === 5 ? d.stundenplan : { tage: [[], [], [], [], []] },
+    aufgabenErledigt: d.aufgabenErledigt && typeof d.aufgabenErledigt === 'object' ? d.aufgabenErledigt : {},
+    bonusXp: Number(d.bonusXp) || 0,
     noten: Array.isArray(d.noten) ? d.noten.filter((n) => n && n.id && Number.isFinite(n.wert)) : [],
     notenEinst: { system: 'noten', muendlich: 60, faecher: {}, ...(d.notenEinst || {}) },
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
@@ -242,15 +250,32 @@ export function review(cardId, rating, now = Date.now()) {
 }
 
 // ---------- Auswertung ----------
-export function streak(heute = new Date()) {
+// Lernserie mit Joker: Ein verpasster Tag pro 7 Tage zerstört die Serie nicht.
+export function streak(heute = new Date(), { mitJoker = true } = {}) {
   const d = new Date(heute);
   let tage = 0;
+  let letzterJoker = -99;
   if (!state.log[tagKey(d)]?.abfragen) d.setDate(d.getDate() - 1);
-  while (state.log[tagKey(d)]?.abfragen) {
-    tage += 1;
+  for (let i = 0; i < 3650; i++) {
+    if (state.log[tagKey(d)]?.abfragen) { tage += 1; }
+    else {
+      const davor = new Date(d); davor.setDate(davor.getDate() - 1);
+      if (!mitJoker || i - letzterJoker < 7 || !state.log[tagKey(davor)]?.abfragen || tage === 0) break;
+      letzterJoker = i;
+    }
     d.setDate(d.getDate() - 1);
   }
   return tage;
+}
+export function jokerFrei(heute = new Date()) {
+  // Joker frei, wenn in den letzten 7 Tagen kein Tag fehlte, der von einer Serie überbrückt wurde
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(heute); d.setDate(d.getDate() - i);
+    const vor = new Date(d); vor.setDate(vor.getDate() - 1);
+    const nach = new Date(d); nach.setDate(nach.getDate() + 1);
+    if (!state.log[tagKey(d)]?.abfragen && state.log[tagKey(vor)]?.abfragen && state.log[tagKey(nach)]?.abfragen) return false;
+  }
+  return true;
 }
 
 export function heute() {
