@@ -28,6 +28,8 @@ function leer() {
     rechner: { verlauf: [], grad: true },
     chat: [],
     notizen: [],
+    termine: [],
+    spiele: { blitz: 0 },
   };
 }
 
@@ -60,6 +62,8 @@ function uebernehmen(daten) {
     log: d.log && typeof d.log === 'object' ? d.log : {},
     exams: Array.isArray(d.exams) ? d.exams : [],
     rechner: { ...basis.rechner, ...(d.rechner || {}) },
+    termine: Array.isArray(d.termine) ? d.termine.filter((t) => t && t.id && t.datum) : [],
+    spiele: { blitz: 0, ...(d.spiele || {}) },
     notizen: Array.isArray(d.notizen) ? d.notizen.filter((n) => n && n.id && Array.isArray(n.striche)) : [],
     chat: Array.isArray(d.chat) ? d.chat.filter((m) => m && typeof m.text === 'string').slice(-40) : [],
   };
@@ -175,8 +179,11 @@ export function addCards(deckId, liste) {
   for (const k of liste) {
     const front = String(k.front ?? '').trim();
     const back = String(k.back ?? '').trim();
-    if (!front || !back) continue;
-    neu.push({ id: uid(), deckId, front, back, note: String(k.note ?? '').trim(), createdAt: Date.now(), srs: newSrs() });
+    if ((!front && !k.bildVorn) || (!back && !k.bildHinten)) continue;
+    const c = { id: uid(), deckId, front, back, note: String(k.note ?? '').trim(), createdAt: Date.now(), srs: newSrs() };
+    if (k.bildVorn) c.bildVorn = k.bildVorn;
+    if (k.bildHinten) c.bildHinten = k.bildHinten;
+    neu.push(c);
   }
   state.cards.push(...neu);
   save();
@@ -188,6 +195,10 @@ export function updateCard(id, patch) {
   if (!card) return;
   for (const feld of ['front', 'back', 'note']) {
     if (patch[feld] !== undefined) card[feld] = String(patch[feld]).trim();
+  }
+  for (const feld of ['bildVorn', 'bildHinten']) {
+    if (patch[feld] === null) delete card[feld];
+    else if (patch[feld]) card[feld] = patch[feld];
   }
   save();
 }
@@ -265,6 +276,18 @@ export function rechnerMerken(eintrag) {
 
 export function setRechner(patch) {
   Object.assign(state.rechner, patch);
+  save();
+}
+
+// ---------- Klassenarbeiten ----------
+export function terminSpeichern(t) {
+  const i = state.termine.findIndex((x) => x.id === t.id);
+  if (i >= 0) state.termine[i] = t; else state.termine.push({ ...t, id: t.id || uid() });
+  state.termine.sort((a, b) => a.datum.localeCompare(b.datum));
+  save();
+}
+export function terminLoeschen(id) {
+  state.termine = state.termine.filter((t) => t.id !== id);
   save();
 }
 

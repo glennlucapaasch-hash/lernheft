@@ -12,6 +12,7 @@ import { statistik } from './views/statistik.js';
 import { einstellungen } from './views/einstellungen.js';
 import { chat } from './views/chat.js';
 import { notizen } from './views/notizen.js';
+import { spiele } from './views/spiele.js';
 
 const BEREICHE = [
   { id: 'start', name: 'Start', icon: 'heft', view: start },
@@ -20,6 +21,7 @@ const BEREICHE = [
   { id: 'scannen', name: 'Scannen', icon: 'scan', view: scannen },
   { id: 'mathe', name: 'Mathe', icon: 'mathe', view: mathe },
   { id: 'klausur', name: 'Klausur', icon: 'klausur', view: klausur },
+  { id: 'spiele', name: 'Spiele', icon: 'spiele', view: spiele, neben: true },
   { id: 'chat', name: 'Lernhelfer', icon: 'chat', view: chat, neben: true },
   { id: 'verwaltung', name: 'Verwaltung', icon: 'schild', view: verwaltung, neben: true, nurAdmin: true },
   { id: 'statistik', name: 'Statistik', icon: 'statistik', view: statistik, neben: true },

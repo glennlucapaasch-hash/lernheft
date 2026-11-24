@@ -1,11 +1,11 @@
 // Macht die App offline nutzbar: Die App-Dateien werden auf dem Gerät zwischengespeichert.
 // Anfragen an die KI gehen immer direkt ins Netz und werden nie gespeichert.
-const VERSION = 'lernheft-8';
+const VERSION = 'lernheft-10';
 const DATEIEN = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/dom.js', 'js/store.js', 'js/srs.js', 'js/check.js', 'js/calc.js', 'js/exam.js', 'js/ai.js',
   'js/views/start.js', 'js/views/karten.js', 'js/views/lernen.js', 'js/views/scannen.js',
-  'js/views/mathe.js', 'js/views/klausur.js', 'js/views/statistik.js', 'js/views/einstellungen.js', 'js/views/chat.js', 'js/views/notizen.js', 'js/views/anmelden.js', 'js/views/verwaltung.js',
+  'js/views/mathe.js', 'js/views/klausur.js', 'js/views/statistik.js', 'js/views/einstellungen.js', 'js/views/chat.js', 'js/views/notizen.js', 'js/views/spiele.js', 'js/bild.js', 'js/views/anmelden.js', 'js/views/verwaltung.js',
 ];
 
 self.addEventListener('install', (e) => {
@@ -36,4 +36,18 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(e.request, { ignoreSearch: true }).then((treffer) => treffer || Response.error())),
   );
+});
+
+// ---------- Erinnerungen ----------
+self.addEventListener('push', (e) => {
+  let d = { titel: 'Lernheft', text: 'Deine Karten warten auf dich.' };
+  try { if (e.data) d = { ...d, ...e.data.json() }; } catch { /* Standardtext */ }
+  e.waitUntil(self.registration.showNotification(d.titel, { body: d.text, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: 'lernheft-erinnerung' }));
+});
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((fenster) => {
+    const offen = fenster.find((f) => 'focus' in f);
+    return offen ? offen.focus() : self.clients.openWindow('./');
+  }));
 });

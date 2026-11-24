@@ -269,7 +269,7 @@ progress::-moz-progress-bar { background: var(--koenigsblau); }
 .heute-stand { display: grid; gap: 0.7rem 2rem; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); align-items: end; padding-top: 0.9rem; border-top: 1px solid var(--linie); }
 .ziel label { display: block; font-size: 0.9rem; margin-bottom: 0.3rem; }
 .serie { font-size: 0.9rem; font-weight: 700; }
-.schnell { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.schnell { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
 .schnell-knopf { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; padding: 0.8rem 0.3rem; border: 1.5px solid var(--tinte); border-radius: 8px; background: var(--blatt); color: var(--tinte); text-decoration: none; font-weight: 600; font-size: 0.88rem; text-align: center; line-height: 1.2; }
 .schnell-knopf:hover { background: var(--wahl); }
 .willkommen { gap: 1.6rem; padding-top: 1rem; }
@@ -679,7 +679,7 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 
 .seite-notiz { max-width: 62rem; gap: .8rem; }
 .notiz-kopf { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
-.notiz-titel { flex: 1 1 12rem; font-size: 1.3rem !important; font-weight: 700; border-color: transparent !important; background: transparent !important; padding-inline: .4rem !important; }
+.notiz-titel { flex: 1 1 6rem; min-width: 0; font-size: 1.3rem !important; font-weight: 700; border-color: transparent !important; background: transparent !important; padding-inline: .4rem !important; }
 .notiz-titel:focus { border-color: var(--linie-stark) !important; background: var(--blatt) !important; }
 .notiz-fach { width: auto !important; }
 .notiz-leiste { position: sticky; top: .5rem; z-index: 12; display: flex; flex-wrap: wrap; gap: .4rem .9rem; align-items: center; padding: .4rem .6rem; background: color-mix(in srgb, var(--blatt) 92%, transparent); backdrop-filter: blur(10px); border: 1.5px solid var(--tinte); border-radius: 14px; box-shadow: 3px 3px 0 var(--schatten); }
@@ -707,3 +707,77 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 .schalter-zeile small { display: block; color: var(--grau); }
 .nav a.nav-marke small { display: block; font-family: var(--schrift); font-size: .8rem; color: var(--rotstift); margin-top: -.3rem; transform: rotate(-3deg); transform-origin: left; }
 .macher { text-align: center; color: var(--rotstift); font-size: 1.1rem; line-height: 2; }
+
+/* ======================= Neu: Schwebe-Menü, Teilen, Termine, Bilder, Spiele ======================= */
+.schwebe-menue { position: absolute; z-index: 5; display: flex; align-items: center; gap: .2rem; padding: .3rem .4rem; background: #fff; color: #1b2a5c; border: 1.5px solid #1b2a5c; border-radius: 999px; box-shadow: 0 6px 18px rgba(27,42,92,.25), 3px 3px 0 rgba(27,42,92,.2); animation: schwebeAuf .22s cubic-bezier(.3,1.6,.5,1); transform-origin: left center; --blatt: #fff; --tinte: #1b2a5c; --koenigsblau: #2440b3; --auf-blau: #fff; --linie-stark: #8a99bc; }
+.schwebe-menue.geht { animation: schwebeZu .16s ease-in forwards; }
+.schwebe-menue .werkzeug { width: 2.5rem; height: 2.5rem; border-radius: 50%; }
+.schwebe-menue .werkzeug.ist-aktiv { transform: none; }
+.schwebe-menue .farbpunkt { width: 1.8rem; height: 1.8rem; }
+.schwebe-trenner { width: 1px; height: 1.6rem; background: #c9d5ea; margin: 0 .2rem; }
+@keyframes schwebeAuf { from { opacity: 0; transform: scale(.4); } }
+@keyframes schwebeZu { to { opacity: 0; transform: scale(.6); } }
+
+.geteilt { margin-top: .5rem; }
+.geteilt-liste { background: var(--blatt); border: 1px solid var(--linie); border-radius: 6px; }
+.geteilt-liste li { display: flex; align-items: center; gap: .7rem; padding: .6rem .8rem; }
+.geteilt-liste li + li { border-top: 1px solid var(--linie); }
+.geteilt-punkt { width: .9rem; height: 2.2rem; border-radius: 3px; background: var(--kf); border: 1px solid rgba(27,42,92,.35); flex: none; }
+.geteilt-text { flex: 1; min-width: 0; display: grid; }
+.geteilt-text small { color: var(--grau); }
+
+.termine { display: grid; gap: .6rem; }
+.termin { display: flex; align-items: center; gap: .9rem; background: var(--blatt); border: 1px solid var(--linie); border-left: 6px solid var(--koenigsblau); border-radius: 6px; padding: .6rem .8rem; flex-wrap: wrap; }
+.termin-bald { border-left-color: var(--rotstift); }
+.termin-tage { display: grid; justify-items: center; min-width: 3.4rem; padding: 0; border: 0; background: transparent; color: var(--koenigsblau); line-height: 1; }
+.termin-bald .termin-tage { color: var(--rotstift); }
+.termin-tage span { font-size: 2rem; line-height: 1.3; }
+.termin-tage small { font-size: .75rem; color: var(--grau); }
+.termin-inhalt { flex: 1 1 10rem; display: grid; gap: .25rem; min-width: 0; }
+.termin-inhalt small { color: var(--grau); }
+.termin-fertig { display: inline-flex; gap: .3rem; align-items: center; color: var(--gruen); font-weight: 700; font-size: .9rem; }
+.termin-leer { display: flex; gap: .8rem; align-items: center; width: 100%; text-align: left; padding: .9rem 1rem; border: 1.5px dashed var(--linie-stark); border-radius: 8px; background: transparent; color: var(--grau); }
+.termin-leer:hover { border-color: var(--koenigsblau); color: var(--tinte); }
+
+.bild-feld { margin-top: .4rem; }
+.bild-feld-bild { position: relative; display: inline-block; }
+.bild-feld-bild img { display: block; max-height: 7rem; max-width: 12rem; border-radius: 6px; border: 1px solid var(--linie-stark); }
+.karte-bild { max-width: 100%; max-height: 13rem; border-radius: 6px; border: 1px solid rgba(27,42,92,.2); background: #fff; }
+.kz-vorn .icon { vertical-align: -2px; margin-right: .3rem; color: var(--grau); }
+
+.spiel { display: grid; gap: 1rem; margin-top: 1rem; }
+.spiel-kopf { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; justify-content: space-between; }
+.spiel-stapel { width: auto !important; max-width: 100%; }
+.spiel-stand { color: var(--grau); font-size: .9rem; }
+.spiel-pokal { color: var(--marker); filter: drop-shadow(2px 2px 0 var(--tinte)); }
+.spiel-ende { text-align: center; display: grid; justify-items: center; gap: .5rem; }
+.memory { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; perspective: 1000px; }
+@media (max-width: 560px) { .memory { grid-template-columns: repeat(3, 1fr); } }
+.memory-karte { aspect-ratio: 3 / 4; padding: 0; border: 0; background: transparent; }
+.memory-innen { display: grid; width: 100%; height: 100%; }
+.memory-rueck, .memory-vorn { grid-area: 1 / 1; border-radius: 8px; display: grid; place-items: center; padding: .4rem; overflow: hidden; }
+.memory-vorn { display: none; }
+.memory-karte.ist-auf .memory-rueck { display: none; }
+.memory-karte.ist-auf .memory-vorn { display: grid; animation: umklappen .3s cubic-bezier(.3,1.4,.5,1); }
+@keyframes umklappen { from { transform: scaleX(0); } }
+.memory-rueck { background: var(--koenigsblau); color: var(--auf-blau); border: 2px solid var(--tinte); box-shadow: 3px 3px 0 var(--schatten); background-image: repeating-linear-gradient(45deg, transparent 0 8px, rgba(255,255,255,.08) 8px 16px); }
+.memory-vorn { background: #fff; color: #1b2a5c; border: 2px solid #1b2a5c; font-weight: 700; font-size: clamp(.78rem, 2.4vw, 1.05rem); line-height: 1.25; overflow-wrap: anywhere; text-align: center; }
+.memory-vorn.seite-v { background: #d9e9fb; }
+.memory-karte.ist-auf.ist-gefunden .memory-vorn { border-color: #17784a; background: #dbf2df; animation: plopp .4s; }
+.memory-karte.ist-auf.ist-falsch .memory-vorn { border-color: #c4273c; animation: wackeln .4s; }
+.blitz-start { text-align: center; display: grid; justify-items: center; gap: .8rem; }
+.blitz-titel { font-size: 2.2rem; color: var(--rotstift); line-height: 1.6; }
+.blitz-uhr { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.blitz-stand { font-size: 1.2rem; }
+.blitz-punkte { font-size: 2rem; font-weight: 700; }
+.blitz-karte { min-height: 9rem !important; padding-top: 2.8rem !important; animation: reinfliegen .25s; }
+.rangliste { display: grid; gap: .4rem; }
+.rangliste li { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) repeat(3, 4.6rem); align-items: center; gap: .4rem; background: var(--blatt); border: 1px solid var(--linie); border-radius: 8px; padding: .55rem .8rem; animation: hinlegen .4s backwards; }
+.rangliste li:nth-child(2) { animation-delay: .05s; } .rangliste li:nth-child(3) { animation-delay: .1s; }
+.rangliste li.ist-ich { border-color: var(--koenigsblau); box-shadow: inset 0 0 0 1px var(--koenigsblau); }
+.rang-platz { font-size: 1.3rem; text-align: center; }
+.rang-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
+.rang-name small { font-weight: 400; color: var(--grau); }
+.rang-zahl { display: grid; justify-items: end; line-height: 1.15; }
+.rang-zahl small { font-size: .7rem; color: var(--grau); }
+@media (max-width: 560px) { .rangliste li { grid-template-columns: 2rem minmax(0, 1fr) 4rem 4rem; } .rangliste .rang-zahl:last-child { display: none; } }

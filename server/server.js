@@ -11,13 +11,14 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as db from './db.js';
+import * as extra from './extra.js';
 
 const WURZEL = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT || 3000);
 const SICHER = process.env.COOKIE_SECURE !== '0';
 const ANTHROPIC = 'https://api.anthropic.com/v1/messages';
 const MAX_KI_BODY = 20 * 1024 * 1024;
-const MAX_DATEN_BODY = 8 * 1024 * 1024;
+const MAX_DATEN_BODY = 30 * 1024 * 1024;
 
 const TYPEN = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -169,6 +170,20 @@ async function api(req, res, pfad) {
     return senden(res, 200, { eingerichtet: Boolean(e.apiKey), heute: db.kiHeute(konto.name), limit: konto.admin ? null : e.tageslimit });
   }
 
+  // ----- Teilen, Rangliste, Erinnerungen -----
+  if (pfad === '/api/geteilt' && methode === 'GET') return senden(res, 200, extra.geteiltListe());
+  if (pfad === '/api/geteilt' && methode === 'POST') return senden(res, 200, extra.geteiltAnlegen(konto.name, await koerper(req, MAX_DATEN_BODY)));
+  const gm = /^\/api\/geteilt\/([\w-]+)$/.exec(pfad);
+  if (gm && methode === 'GET') { const g = extra.geteiltHolen(gm[1]); return g ? senden(res, 200, g) : fehler(res, 404, 'Gibt es nicht mehr.'); }
+  if (gm && methode === 'DELETE') { extra.geteiltLoeschen(gm[1], konto.name, konto.admin); return senden(res, 200, { ok: true }); }
+  if (pfad === '/api/rangliste' && methode === 'GET') return senden(res, 200, extra.rangliste());
+  if (pfad === '/api/push' && methode === 'GET') return senden(res, 200, { schluessel: extra.vapidOeffentlich(), abo: extra.aboLesen(konto.name) });
+  if (pfad === '/api/push' && methode === 'POST') return senden(res, 200, { abo: extra.aboSetzen(konto.name, await koerper(req, 20000)) });
+  if (pfad === '/api/push/test' && methode === 'POST') {
+    const ok = await extra.testSenden(konto.name);
+    return ok ? senden(res, 200, { ok }) : fehler(res, 400, 'Die Mitteilung kam nicht an. Sind Erinnerungen auf diesem Gerät eingeschaltet?');
+  }
+
   // ----- nur für Admins -----
   if (pfad.startsWith('/api/verwaltung')) {
     if (!konto.admin) return fehler(res, 403, 'Das darf nur der Admin.');
@@ -198,6 +213,9 @@ async function api(req, res, pfad) {
       if (m[1] === konto.name) return fehler(res, 400, 'Du kannst dich nicht selbst löschen.');
       try { db.kontoLoeschen(m[1]); return senden(res, 200, { ok: true }); }
       catch (e) { return fehler(res, 404, e.message); }
+    }
+    if (pfad === '/api/verwaltung/sicherung' && methode === 'GET') {
+      return senden(res, 200, extra.sicherungDaten(), { 'content-disposition': `attachment; filename="lernheft-sicherung-${new Date().toISOString().slice(0, 10)}.json"` });
     }
     if (pfad === '/api/verwaltung/test' && methode === 'POST') {
       const e = db.einstellungen();
@@ -233,4 +251,10 @@ const server = http.createServer(async (req, res) => {
 });
 
 db.oeffnen(process.env.DATEN || path.join(WURZEL, 'daten'));
+extra.oeffnen(process.env.DATEN || path.join(WURZEL, 'daten'));
+const jedeMinute = () => { extra.erinnerungenPruefen().catch((e) => console.error('Erinnerungen:', e.message)); };
+const jedeStunde = () => { try { extra.naechtlicheSicherung(); } catch (e) { console.error('Sicherung:', e.message); } };
+setInterval(jedeMinute, 60e3).unref();
+setInterval(jedeStunde, 3600e3).unref();
+setTimeout(jedeStunde, 5000).unref();
 server.listen(PORT, () => console.log(`Lernheft läuft auf Port ${PORT}`));

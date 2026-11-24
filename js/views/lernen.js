@@ -38,9 +38,11 @@ function aktuelleKarte() {
 
 function seiten(karte) {
   return sitzung.richtung === 'vor'
-    ? { frage: karte.front, antwort: karte.back }
-    : { frage: karte.back, antwort: karte.front };
+    ? { frage: karte.front, antwort: karte.back, bildF: karte.bildVorn, bildA: karte.bildHinten }
+    : { frage: karte.back, antwort: karte.front, bildF: karte.bildHinten, bildA: karte.bildVorn };
 }
+
+const inhalt = (text, bild) => [bild && h('img', { class: 'karte-bild', src: bild, alt: '' }), text && h('p', { class: 'karte-text' }, text)];
 
 function bewerten(ctx, karte, rating) {
   store.review(karte.id, rating);
@@ -71,8 +73,9 @@ function lernen(ctx) {
 
   const deck = store.getDeck(karte.deckId);
   const fach = FAECHER[deck?.fach] || FAECHER.sonstiges;
-  const { frage, antwort } = seiten(karte);
+  const { frage, antwort, bildF, bildA } = seiten(karte);
   let modus = sitzung.modus;
+  if (!antwort && modus !== 'umdrehen') modus = 'umdrehen'; // Bild als Antwort: nur zum Umdrehen
 
   if (modus === 'ankreuzen' && !sitzung.optionen) {
     const pool = store.cardsOf(karte.deckId).map((c) => seiten(c).antwort);
@@ -130,12 +133,12 @@ function lernen(ctx) {
     const kartenEl = h('div', { class: `flip ${offen ? 'ist-offen' : ''}`, role: offen ? null : 'button', tabindex: offen ? null : '0', 'aria-label': offen ? null : 'Karte umdrehen', onclick: umdrehen },
       h('div', { class: 'flip-innen' },
         h('div', { class: `karteikarte gross flip-vorn farbe-${fach.farbe}` },
-          h('div', { class: 'karte-seite' }, h('p', { class: 'karte-text' }, frage), fremdVorn && tonKnopf(karte.front)),
+          h('div', { class: 'karte-seite' }, inhalt(frage, bildF), fremdVorn && tonKnopf(karte.front)),
           h('p', { class: 'karte-tipp' }, 'Tippen zum Umdrehen')),
         h('div', { class: `karteikarte gross flip-hinten farbe-${fach.farbe}` },
           h('div', { class: 'karte-seite' },
-            h('p', { class: 'karte-frage-klein' }, frage),
-            h('p', { class: 'karte-text' }, antwort),
+            frage && h('p', { class: 'karte-frage-klein' }, frage),
+            inhalt(antwort, bildA),
             !fremdVorn && tonKnopf(karte.front),
             karte.note && h('p', { class: 'karte-notiz' }, karte.note)))));
     const unten = h('div', { class: 'lernen-unten' },
@@ -168,7 +171,7 @@ function lernen(ctx) {
     const seite = h('div', { class: 'lernen' }, kopf,
       h('p', { class: 'lernen-stapel' }, deck?.name || ''),
       h('div', { class: `karteikarte gross farbe-${fach.farbe}` },
-        h('div', { class: 'karte-seite' }, h('p', { class: 'karte-text' }, frage), fremdVorn && tonKnopf(karte.front))),
+        h('div', { class: 'karte-seite' }, inhalt(frage, bildF), fremdVorn && tonKnopf(karte.front))),
       h('form', { class: 'schreiben', onsubmit: offen ? (e) => { e.preventDefault(); weiter(); } : pruefen },
         eingabe,
         zeichen && !offen && h('div', { class: 'sonderzeichen', 'aria-label': 'Sonderzeichen einfügen' }, zeichen.map((z) =>
@@ -207,7 +210,7 @@ function lernen(ctx) {
   const seite = h('div', { class: 'lernen' }, kopf,
     h('p', { class: 'lernen-stapel' }, deck?.name || ''),
     h('div', { class: `karteikarte gross farbe-${fach.farbe}` },
-      h('div', { class: 'karte-seite' }, h('p', { class: 'karte-text' }, frage), fremdVorn && tonKnopf(karte.front))),
+      h('div', { class: 'karte-seite' }, inhalt(frage, bildF), fremdVorn && tonKnopf(karte.front))),
     h('div', { class: 'ankreuzen' }, sitzung.optionen.map((o) => {
       const istRichtig = offen && o === antwort;
       const istFalsch = offen && o === sitzung.eingabe && o !== antwort;

@@ -215,7 +215,48 @@ function editor(ctx, n) {
     else if (s.p.length > vorher) strich(g, s, Math.max(1, vorher));
   }
 
+  // ----- Schwebe-Menü: Stift kurz still über dem Blatt halten → Werkzeuge direkt an der Spitze -----
+  let schwebe = null;
+  let menueEl = null;
+  function menueZu() {
+    if (!menueEl) return;
+    const el = menueEl; menueEl = null;
+    el.classList.add('geht'); setTimeout(() => el.remove(), 160);
+  }
+  function menueAuf(cx, cy) {
+    menueZu();
+    const r = blatt.getBoundingClientRect();
+    const w = ui.werkzeug;
+    const farben = (w === 'marker' ? MARKER : FARBEN).slice(0, 5);
+    const wahl = (fn) => () => { fn(); leisteZeichnen(); setTimeout(menueZu, 220); menueEl?.querySelectorAll('.ist-aktiv').forEach((x) => x.classList.remove('ist-aktiv')); };
+    menueEl = h('div', { class: 'schwebe-menue', role: 'toolbar', 'aria-label': 'Schnellauswahl', style: `left:${Math.min(cx - r.left + 22, r.width - 250)}px;top:${Math.max(cy - r.top - 70, 8)}px` },
+      [['stift', 'Stift'], ['marker', 'Textmarker'], ['radierer', 'Radierer']].map(([id, name]) =>
+        h('button', { class: `werkzeug ${w === id ? 'ist-aktiv' : ''}`, 'aria-label': name, onclick: wahl(() => werkzeug(id)) }, icon(id))),
+      w !== 'radierer' && h('span', { class: 'schwebe-trenner' }),
+      w !== 'radierer' && farben.map(([f, name]) =>
+        h('button', { class: `farbpunkt ${(w === 'marker' ? ui.marker : ui.farbe) === f ? 'ist-aktiv' : ''}`, style: `--f:${f}`, 'aria-label': name, onclick: wahl(() => { if (w === 'marker') ui.marker = f; else ui.farbe = f; }) })),
+      h('span', { class: 'schwebe-trenner' }),
+      h('button', { class: 'werkzeug', 'aria-label': 'Rückgängig', onclick: () => { zurueck(); } }, icon('rueck')));
+    menueEl.dataset.x = cx; menueEl.dataset.y = cy;
+    blatt.append(menueEl);
+    const breiteM = menueEl.offsetWidth;
+    menueEl.style.left = `${Math.max(8, Math.min(cx - r.left + 22, r.width - breiteM - 8))}px`;
+    clearTimeout(menueEl.zu);
+  }
+  function schweben(e) {
+    if (menueEl) {
+      if (Math.hypot(e.clientX - menueEl.dataset.x, e.clientY - menueEl.dataset.y) > 140) menueZu();
+      return;
+    }
+    if (!schwebe || Math.hypot(e.clientX - schwebe.x, e.clientY - schwebe.y) > 5) {
+      clearTimeout(schwebe?.t);
+      schwebe = { x: e.clientX, y: e.clientY, t: setTimeout(() => menueAuf(e.clientX, e.clientY), 650) };
+    }
+  }
+  ctx.onLeave(() => clearTimeout(schwebe?.t));
+
   function hover(e) {
+    if (e.pointerType === 'pen') schweben(e);
     // Apple Pencil (Pro/2. Gen. mit M-iPad) schwebt: Vorschau, wo und wie dick der Strich wird
     overlayLeeren();
     if (e.pointerType !== 'pen' || akt) return;
@@ -239,6 +280,7 @@ function editor(ctx, n) {
       return;
     }
     if (akt) return;
+    clearTimeout(schwebe?.t); schwebe = null; menueZu();
     e.preventDefault();
     try { ov.setPointerCapture(e.pointerId); } catch { /* egal */ }
     const w = e.buttons & 32 ? 'radierer' : ui.werkzeug;
@@ -281,7 +323,7 @@ function editor(ctx, n) {
   };
   ov.addEventListener('pointerup', ende);
   ov.addEventListener('pointercancel', ende);
-  ov.addEventListener('pointerleave', (e) => { if (!akt && e.pointerType === 'pen') overlayLeeren(); });
+  ov.addEventListener('pointerleave', (e) => { if (!akt && e.pointerType === 'pen') { overlayLeeren(); clearTimeout(schwebe?.t); schwebe = null; } });
   ov.addEventListener('contextmenu', (e) => e.preventDefault());
 
   function zurueck() { if (!rueck.length) return; vor.push(striche); striche = rueck.pop(); alles(); speichern(); }

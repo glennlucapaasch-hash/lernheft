@@ -4,6 +4,34 @@ import { FAECHER } from '../store.js';
 import { stufe, STUFEN, STUFEN_NAMEN } from '../srs.js';
 import { lernenStarten } from './lernen.js';
 import { stapelKachel } from './start.js';
+import { bildAlsDaten } from '../bild.js';
+import { istServerModus } from '../ai.js';
+
+const serverApi = async (pfad, opts = {}) => {
+  const r = await fetch(pfad, { credentials: 'same-origin', ...opts, headers: { 'content-type': 'application/json', 'x-lernheft': '1' } });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d?.error?.message || 'Das hat nicht geklappt.');
+  return d;
+};
+
+// Bildfeld für eine Kartenseite
+function bildFeld(label, wert, onChange) {
+  let aktuell = wert || null;
+  const vorschau = h('div', { class: 'bild-feld-vorschau' });
+  const datei = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try { aktuell = await bildAlsDaten(f); onChange(aktuell); zeigen(); } catch (err) { toast(err.message, 'fehler'); }
+  } });
+  function zeigen() {
+    vorschau.replaceChildren(aktuell
+      ? h('div', { class: 'bild-feld-bild' }, h('img', { src: aktuell, alt: label }),
+          h('button', { type: 'button', class: 'knopf-icon foto-weg', 'aria-label': `${label} entfernen`, onclick: () => { aktuell = null; onChange(null); zeigen(); } }, icon('x', 16)))
+      : h('button', { type: 'button', class: 'knopf knopf-leise knopf-mini', onclick: () => datei.click() }, icon('bild', 16), label));
+  }
+  zeigen();
+  return h('div', { class: 'bild-feld' }, datei, vorschau);
+}
 
 const ui = { deckId: null, suche: '' };
 
@@ -42,12 +70,15 @@ function kartenDialog(ctx, deck, karte) {
   const front = h('textarea', { rows: '2', maxlength: '600' }, karte?.front || '');
   const back = h('textarea', { rows: '2', maxlength: '1500' }, karte?.back || '');
   const note = h('input', { type: 'text', value: karte?.note || '', maxlength: '400' });
+  const bilder = { bildVorn: karte?.bildVorn || null, bildHinten: karte?.bildHinten || null };
   const speichern = (weiter) => {
-    if (!front.value.trim() || !back.value.trim()) { (front.value.trim() ? back : front).focus(); return; }
-    if (karte) store.updateCard(karte.id, { front: front.value, back: back.value, note: note.value });
-    else store.addCards(deck.id, [{ front: front.value, back: back.value, note: note.value }]);
+    if (!front.value.trim() && !bilder.bildVorn) { front.focus(); return; }
+    if (!back.value.trim() && !bilder.bildHinten) { back.focus(); return; }
+    if (karte) store.updateCard(karte.id, { front: front.value, back: back.value, note: note.value, bildVorn: bilder.bildVorn, bildHinten: bilder.bildHinten });
+    else store.addCards(deck.id, [{ front: front.value, back: back.value, note: note.value, ...bilder }]);
     if (weiter) {
       front.value = ''; back.value = ''; note.value = '';
+      zu(); kartenDialog(ctx, deck); return;
       front.focus();
       toast('Karte gespeichert.');
     } else zu();
@@ -55,7 +86,9 @@ function kartenDialog(ctx, deck, karte) {
   const zu = modal(karte ? 'Karte bearbeiten' : 'Neue Karte',
     h('form', { onsubmit: (e) => { e.preventDefault(); speichern(false); } },
       feld(istMathe ? 'Vorderseite (Aufgabe)' : FAECHER[deck.fach].lang ? `Vorderseite (${FAECHER[deck.fach].name})` : 'Vorderseite (Frage)', front),
+      bildFeld('Bild vorne', bilder.bildVorn, (b) => { bilder.bildVorn = b; }),
       feld(istMathe ? 'Rückseite (Ergebnis)' : FAECHER[deck.fach].lang ? 'Rückseite (Deutsch)' : 'Rückseite (Antwort)', back),
+      bildFeld('Bild hinten', bilder.bildHinten, (b) => { bilder.bildHinten = b; }),
       feld(istMathe ? 'Rechenweg (freiwillig)' : 'Hinweis oder Beispielsatz (freiwillig)', note),
       h('div', { class: 'reihe reihe-ende' },
         karte && h('button', { class: 'knopf knopf-gefahr-leise', type: 'button', onclick: () => { store.deleteCard(karte.id); zu(); } }, icon('muell', 18), 'Löschen'),
@@ -132,6 +165,38 @@ function stufenLeiste(deckId) {
       h('li', null, h('span', { class: `stufen-punkt stufe-${k}` }), `${STUFEN_NAMEN[k]} `, h('b', null, String(z[k]))))));
 }
 
+const geteiltUi = { liste: null, laden: false };
+function geteiltBereich(ctx) {
+  if (!istServerModus()) return null;
+  if (!geteiltUi.liste && !geteiltUi.laden) {
+    geteiltUi.laden = true;
+    serverApi('/api/geteilt').then((l) => { geteiltUi.liste = l; }).catch(() => { geteiltUi.liste = []; }).finally(() => { geteiltUi.laden = false; if (location.hash === '#karten') ctx.refresh(); });
+  }
+  const ich = ctx.konto?.name;
+  const liste = geteiltUi.liste || [];
+  return h('section', { class: 'geteilt' },
+    h('div', { class: 'abschnitt-kopf' }, h('h2', null, 'Von anderen geteilt'),
+      h('button', { class: 'knopf knopf-leise', onclick: () => { geteiltUi.liste = null; ctx.refresh(); } }, 'Aktualisieren')),
+    !geteiltUi.liste ? h('p', { class: 'hinweis' }, 'Lade …')
+      : !liste.length ? h('p', { class: 'hinweis' }, 'Noch nichts geteilt. Öffne einen Stapel und tippe auf „Mit allen teilen“.')
+      : h('ul', { class: 'geteilt-liste' }, liste.map((g) => h('li', null,
+          h('span', { class: `geteilt-punkt farbe-${FAECHER[g.fach]?.farbe || 'weiss'}` }),
+          h('div', { class: 'geteilt-text' }, h('strong', null, g.name), h('small', null, `${FAECHER[g.fach]?.name || 'Sonstiges'} · ${mehrzahl(g.anzahl, 'Karte', 'Karten')} · von ${g.von}`)),
+          h('button', { class: 'knopf knopf-mini', onclick: async () => {
+            try {
+              const voll = await serverApi(`/api/geteilt/${g.id}`);
+              const deck = store.addDeck(voll.name, voll.fach);
+              store.addCards(deck.id, voll.karten);
+              toast(`„${voll.name}“ ist jetzt in deinen Karten.`);
+              ctx.go('karten', { deckId: deck.id });
+            } catch (e) { toast(e.message, 'fehler'); }
+          } }, 'Übernehmen'),
+          (g.von === ich || ctx.konto?.admin) && h('button', { class: 'knopf-icon', 'aria-label': `Teilen von ${g.name} beenden`, onclick: async () => {
+            if (!(await nachfragen('Nicht mehr teilen?', `„${g.name}“ verschwindet aus der Liste. Wer ihn schon übernommen hat, behält ihn.`, 'Nicht mehr teilen'))) return;
+            try { await serverApi(`/api/geteilt/${g.id}`, { method: 'DELETE' }); geteiltUi.liste = null; ctx.refresh(); } catch (e) { toast(e.message, 'fehler'); }
+          } }, icon('muell', 18))))));
+}
+
 function uebersicht(ctx) {
   const { decks } = store.getState();
   return h('div', { class: 'seite' },
@@ -144,7 +209,8 @@ function uebersicht(ctx) {
           h('p', null, 'Noch kein Stapel da. Scanne eine Buchseite oder leg einen Stapel von Hand an.'),
           h('div', { class: 'reihe' },
             h('button', { class: 'knopf knopf-haupt', onclick: () => ctx.go('scannen') }, icon('scan', 18), 'Seite scannen'),
-            h('button', { class: 'knopf', onclick: () => { store.beispieleLaden(); ctx.refresh(); } }, 'Beispiele laden'))));
+            h('button', { class: 'knopf', onclick: () => { store.beispieleLaden(); ctx.refresh(); } }, 'Beispiele laden'))),
+    geteiltBereich(ctx));
 }
 
 function detail(ctx, deck) {
@@ -159,7 +225,7 @@ function detail(ctx, deck) {
     liste.replaceChildren(...treffer.map((c) =>
       h('li', null,
         h('button', { class: 'karten-zeile', onclick: () => kartenDialog(ctx, deck, c), 'aria-label': `Karte bearbeiten: ${c.front}` },
-          h('span', { class: 'kz-vorn' }, c.front),
+          h('span', { class: 'kz-vorn' }, c.bildVorn && icon('bild', 15), c.front || '(Bild)'),
           h('span', { class: 'kz-hinten' }, c.back),
           h('span', { class: `kz-stufe stufe-text-${stufe(c.srs)}` }, STUFEN_NAMEN[stufe(c.srs)])))));
     if (!treffer.length) liste.append(h('li', { class: 'hinweis' }, q ? 'Keine Karte passt zur Suche.' : 'Noch keine Karten in diesem Stapel.'));
@@ -184,7 +250,14 @@ function detail(ctx, deck) {
     h('div', { class: 'reihe werkzeuge' },
       h('button', { class: 'knopf', onclick: () => kartenDialog(ctx, deck) }, icon('plus', 18), 'Karte'),
       h('button', { class: 'knopf', onclick: () => listenDialog(ctx, deck) }, 'Liste einfügen'),
-      h('button', { class: 'knopf', onclick: () => ctx.go('scannen', { deckId: deck.id }) }, icon('scan', 18), 'Seite scannen')),
+      h('button', { class: 'knopf', onclick: () => ctx.go('scannen', { deckId: deck.id }) }, icon('scan', 18), 'Seite scannen'),
+      istServerModus() && alle.length > 0 && h('button', { class: 'knopf', onclick: async () => {
+        if (!(await nachfragen('Mit allen teilen?', `Alle mit Zugang zum Lernheft können „${deck.name}“ (${mehrzahl(alle.length, 'Karte', 'Karten')}) in ihre Karten übernehmen. Dein Lernstand wird nicht geteilt.`, 'Teilen'))) return;
+        try {
+          await serverApi('/api/geteilt', { method: 'POST', body: JSON.stringify({ name: deck.name, fach: deck.fach, karten: alle.map(({ front, back, note, bildVorn, bildHinten }) => ({ front, back, note, bildVorn, bildHinten })) }) });
+          toast('Geteilt – alle sehen den Stapel jetzt unter „Von anderen geteilt“.');
+        } catch (e) { toast(e.message, 'fehler'); }
+      } }, icon('teilen', 18), 'Mit allen teilen')),
     alle.length > 8 && h('input', { type: 'search', class: 'suche', placeholder: 'Karten durchsuchen', 'aria-label': 'Karten durchsuchen', value: ui.suche, oninput: (e) => { ui.suche = e.target.value; listeFuellen(); } }),
     liste);
 }

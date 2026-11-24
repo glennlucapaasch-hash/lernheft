@@ -1,4 +1,5 @@
-import { h, icon, datumLang, mehrzahl, toast } from '../dom.js';
+import { h, icon, datumLang, mehrzahl, toast, modal, feld, nachfragen } from '../dom.js';
+import { stufe } from '../srs.js';
 import * as store from '../store.js';
 import { FAECHER } from '../store.js';
 import { lernenStarten } from './lernen.js';
@@ -28,6 +29,71 @@ function willkommen(ctx) {
       h('li', null, h('strong', null, 'Scannen'), h('span', null, 'Foto von der Buchseite machen, Karten kurz prüfen, speichern.')),
       h('li', null, h('strong', null, 'Abfragen lassen'), h('span', null, 'Umdrehen, schreiben oder ankreuzen. Was du kannst, kommt seltener dran.')),
       h('li', null, h('strong', null, 'Probeklausur schreiben'), h('span', null, 'Mit Zeit und Note, damit die echte Arbeit keine Überraschung wird.'))));
+}
+
+// ---------- Klassenarbeiten ----------
+const tageBis = (datum) => {
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  return Math.round((new Date(`${datum}T00:00:00`) - heute) / 864e5);
+};
+export function pensum(t) {
+  const karten = store.getState().cards.filter((c) => t.deckIds.includes(c.deckId));
+  const offen = karten.filter((c) => !['gefestigt', 'sicher'].includes(stufe(c.srs)));
+  const tage = Math.max(1, tageBis(t.datum));
+  const proTag = Math.ceil(offen.length / tage);
+  const jetzt = Date.now();
+  const heute = [...offen].sort((a, b) => (a.srs.due ?? 0) - (b.srs.due ?? 0)).filter((c, i) => i < proTag || (c.srs.due ?? 0) <= jetzt);
+  return { karten: karten.length, sitzt: karten.length - offen.length, heute };
+}
+
+function terminDialog(ctx, t) {
+  const { decks } = store.getState();
+  const titel = h('input', { type: 'text', value: t?.titel || '', placeholder: 'z. B. Englisch-Arbeit Unit 1', maxlength: '60' });
+  const morgen = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+  const datum = h('input', { type: 'date', value: t?.datum || morgen, min: new Date().toISOString().slice(0, 10) });
+  const gewaehlt = new Set(t?.deckIds || []);
+  const zu = modal(t ? 'Klassenarbeit bearbeiten' : 'Klassenarbeit eintragen', h('form', { onsubmit: (e) => {
+    e.preventDefault();
+    if (!titel.value.trim()) { titel.focus(); return; }
+    if (!gewaehlt.size) { toast('Wähle mindestens einen Stapel.', 'fehler'); return; }
+    store.terminSpeichern({ id: t?.id, titel: titel.value.trim(), datum: datum.value, deckIds: [...gewaehlt] });
+    zu(); ctx.refresh();
+  } },
+    feld('Was?', titel),
+    feld('Wann?', datum),
+    h('fieldset', null, h('legend', null, 'Welche Stapel kommen dran?'),
+      h('ul', { class: 'haken-liste' }, decks.map((d) => h('li', null, h('label', null,
+        h('input', { type: 'checkbox', checked: gewaehlt.has(d.id), onchange: (e) => { if (e.target.checked) gewaehlt.add(d.id); else gewaehlt.delete(d.id); } }),
+        h('span', null, d.name), h('small', null, mehrzahl(store.cardsOf(d.id).length, 'Karte', 'Karten'))))))),
+    h('p', { class: 'hinweis' }, 'Die App verteilt die Karten, die noch nicht sitzen, gleichmäßig auf die Tage bis zur Arbeit.'),
+    h('div', { class: 'reihe reihe-ende' },
+      t && h('button', { type: 'button', class: 'knopf knopf-gefahr-leise', onclick: async () => { zu(); if (await nachfragen('Termin löschen?', `„${t.titel}“ wird entfernt.`, 'Löschen')) { store.terminLoeschen(t.id); ctx.refresh(); } } }, 'Löschen'),
+      h('button', { type: 'submit', class: 'knopf knopf-haupt' }, 'Speichern'))));
+}
+
+function termineBereich(ctx) {
+  const termine = store.getState().termine.filter((t) => tageBis(t.datum) >= 0);
+  return h('section', null,
+    h('div', { class: 'abschnitt-kopf' },
+      h('h2', null, 'Klassenarbeiten'),
+      h('button', { class: 'knopf knopf-leise', onclick: () => terminDialog(ctx) }, icon('plus', 18), 'Eintragen')),
+    termine.length
+      ? h('div', { class: 'termine' }, termine.map((t) => {
+          const tage = tageBis(t.datum);
+          const p = pensum(t);
+          const anteil = p.karten ? Math.round((p.sitzt / p.karten) * 100) : 0;
+          return h('article', { class: `termin ${tage <= 3 ? 'termin-bald' : ''}` },
+            h('button', { class: 'termin-tage', onclick: () => terminDialog(ctx, t), 'aria-label': `${t.titel} bearbeiten` },
+              h('span', { class: 'handschrift' }, tage === 0 ? '!' : String(tage)), h('small', null, tage === 0 ? 'heute' : tage === 1 ? 'Tag' : 'Tage')),
+            h('div', { class: 'termin-inhalt' },
+              h('strong', null, t.titel),
+              h('small', null, `${new Date(`${t.datum}T00:00:00`).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })} · ${anteil} % sitzen`),
+              h('progress', { max: 100, value: anteil, 'aria-label': `${anteil} Prozent sitzen` })),
+            p.heute.length
+              ? h('button', { class: 'knopf knopf-haupt', onclick: () => lernenStarten(ctx, { cardIds: p.heute.map((c) => c.id), titel: t.titel }) }, `Heute ${p.heute.length}`)
+              : h('span', { class: 'termin-fertig' }, icon('check', 18), 'Für heute fertig'));
+        }))
+      : h('button', { class: 'termin-leer', onclick: () => terminDialog(ctx) }, icon('kalender', 22), h('span', null, 'Trag deine nächste Klassenarbeit ein – dann plant die App, wie viel du jeden Tag lernen solltest.')));
 }
 
 export function start(ctx) {
@@ -73,7 +139,10 @@ export function start(ctx) {
     h('nav', { class: 'schnell', 'aria-label': 'Schnellzugriff' },
       h('a', { class: 'schnell-knopf', href: '#scannen' }, icon('scan', 26), h('span', null, 'Seite scannen')),
       h('a', { class: 'schnell-knopf', href: '#klausur' }, icon('klausur', 26), h('span', null, 'Probeklausur')),
-      h('a', { class: 'schnell-knopf', href: '#mathe' }, icon('mathe', 26), h('span', null, 'Taschenrechner'))),
+      h('a', { class: 'schnell-knopf', href: '#spiele' }, icon('spiele', 26), h('span', null, 'Spiele')),
+      h('a', { class: 'schnell-knopf', href: '#mathe' }, icon('mathe', 26), h('span', null, 'Rechner'))),
+
+    termineBereich(ctx),
 
     h('section', null,
       h('div', { class: 'abschnitt-kopf' },

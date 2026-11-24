@@ -73,6 +73,54 @@ function passwortDialog() {
     h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Passwort ändern'))));
 }
 
+const b64zuBytes = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4)), (c) => c.charCodeAt(0));
+async function pushApi(body) {
+  const r = await fetch('/api/push' + (body === 'test' ? '/test' : ''), { method: body ? 'POST' : 'GET', credentials: 'same-origin', headers: { 'content-type': 'application/json', 'x-lernheft': '1' }, body: body && body !== 'test' ? JSON.stringify(body) : undefined });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d?.error?.message || 'Das hat nicht geklappt.');
+  return d;
+}
+function erinnerungBereich(ctx) {
+  const status = h('p', { class: 'hinweis', role: 'status' }, 'Lade …');
+  const zeit = h('input', { type: 'time', value: '17:00', step: '900' });
+  const knoepfe = h('div', { class: 'reihe' });
+  const kannPush = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const iphoneOhneApp = /iPhone|iPad|iPod/.test(navigator.userAgent) && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches;
+  let abo = null;
+  async function laden() {
+    try { const d = await pushApi(); abo = d.abo; zeichnen(d.schluessel); } catch (e) { status.textContent = e.message; }
+  }
+  function zeichnen(schluessel) {
+    if (abo?.zeit) zeit.value = abo.zeit;
+    const hier = Notification?.permission === 'granted';
+    status.textContent = !kannPush
+      ? (iphoneOhneApp ? 'Auf iPhone und iPad gehen Erinnerungen nur, wenn das Lernheft auf dem Home-Bildschirm liegt: Teilen-Knopf → „Zum Home-Bildschirm“, dann von dort öffnen.' : 'Dieser Browser kann keine Mitteilungen empfangen.')
+      : abo?.geraete && hier ? `Eingeschaltet – täglich um ${abo.zeit} Uhr, wenn Karten fällig sind oder eine Klassenarbeit näher rückt.` : 'Ausgeschaltet.';
+    knoepfe.replaceChildren(
+      kannPush && h('button', { class: 'knopf knopf-haupt', onclick: async () => {
+        try {
+          if ((await Notification.requestPermission()) !== 'granted') { toast('Mitteilungen wurden nicht erlaubt. Du kannst das in den Einstellungen des Geräts ändern.', 'fehler'); return; }
+          const reg = await navigator.serviceWorker.ready;
+          const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64zuBytes(schluessel) });
+          abo = (await pushApi({ sub: sub.toJSON(), zeit: zeit.value, tz: Intl.DateTimeFormat().resolvedOptions().timeZone })).abo;
+          toast('Erinnerungen eingeschaltet.');
+          zeichnen(schluessel);
+        } catch (e) { toast(e.message || 'Einschalten hat nicht geklappt.', 'fehler'); }
+      } }, abo?.geraete ? 'Uhrzeit speichern' : 'Erinnerungen einschalten'),
+      abo?.geraete && h('button', { class: 'knopf', onclick: async () => { try { await pushApi('test'); toast('Test geschickt.'); } catch (e) { toast(e.message, 'fehler'); } } }, 'Test schicken'),
+      abo?.geraete && h('button', { class: 'knopf knopf-leise', onclick: async () => {
+        try { const reg = await navigator.serviceWorker.ready; await (await reg.pushManager.getSubscription())?.unsubscribe(); } catch { /* egal */ }
+        await pushApi({ aus: true }); abo = null; toast('Erinnerungen ausgeschaltet.'); zeichnen(schluessel);
+      } }, 'Ausschalten'));
+  }
+  laden();
+  return h('section', { class: 'blatt' },
+    h('h2', null, 'Erinnerungen'),
+    h('p', null, 'Einmal am Tag eine Mitteilung aufs Handy: wie viele Karten warten und wann die nächste Klassenarbeit ist.'),
+    feld('Uhrzeit', zeit),
+    status, knoepfe);
+}
+
 function kontoBereich(ctx) {
   const k = ctx.konto;
   return h('section', { class: 'blatt' },
@@ -128,6 +176,7 @@ export function einstellungen(ctx) {
         { wert: 'tafel', titel: 'Tafel', text: 'Dunkel, wie Kreide auf der Tafel' },
       ], e.theme, (v) => { store.setSettings({ theme: v }); ctx.themeAnwenden(); })),
 
+    mitKonto && erinnerungBereich(ctx),
     mitKonto ? kontoBereich(ctx) : h('section', { class: 'blatt' },
       h('h2', null, 'KI-Schlüssel'),
       h('p', null, 'Zum Erkennen von Fotos, für Erklärungen und für neue Klausuraufgaben fragt die App Claude von Anthropic. Dafür brauchst du einen eigenen API-Schlüssel; jede Anfrage kostet ein paar Cent und wird über dein Konto bei Anthropic abgerechnet.'),

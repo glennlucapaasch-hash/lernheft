@@ -53,6 +53,10 @@ const ICONS = {
   vor: '<path d="M15 7l4.500 4.500L15 16"/><path d="M19 11.500h-9a5 5 0 0 0 0 10h2"/>',
   tausch: '<path d="M7 4.500L3.500 8 7 11.500M3.500 8H17"/><path d="M17 12.500l3.500 3.500-3.500 3.500M20.500 16H7"/>',
   mehr: '<path d="M6 12h.01M12 12h.01M18 12h.01" stroke-width="3"/>',
+  teilen: '<path d="M12 3.500v11"/><path d="M8 7l4-3.500L16 7"/><path d="M6.500 11H5.500a1 1 0 0 0-1 1v7.500a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V12a1 1 0 0 0-1-1h-1"/>',
+  spiele: '<rect x="3" y="7" width="18" height="11" rx="4"/><path d="M7.500 10.500v4M5.500 12.500h4"/><path d="M15.500 11.500h.01M17.500 13.500h.01" stroke-width="2.400"/>',
+  kalender: '<rect x="3.500" y="5" width="17" height="15.500" rx="2"/><path d="M3.500 10h17M8 3v4M16 3v4"/>',
+  pokal: '<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4.500v1.500A3 3 0 0 0 7.500 10.500M17 6h2.500v1.500a3 3 0 0 1-3 3"/><path d="M12 14v3.500M8.500 20.500h7M9.500 17.500h5v3h-5z"/>',
   uhr: '<circle cx="12" cy="12" r="8.500"/><path d="M12 7.500V12l3 2"/>',
 };
 

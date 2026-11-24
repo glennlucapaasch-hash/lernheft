@@ -7,6 +7,10 @@ Eine Lern-App für die Schule, die im Browser läuft – auf Handy, Tablet und P
 - **Mathe:** wissenschaftlicher Taschenrechner (Grad/Bogenmaß, Verlauf), Funktionsplotter für bis zu drei Funktionen, KI-Erklärung von Aufgaben Schritt für Schritt (auch per Foto) mit ähnlichen Übungsaufgaben.
 - **Probeklausuren:** automatisch erstellt – von der KI mit neuen Aufgaben oder ohne KI aus deinen Karten. Mit Zeitlimit, Korrektur, Note und Fehlerkartei.
 - **Lernhelfer:** KI-Chat für alle Fragen rund um die Schule, auch mit Foto. Gibt bei Hausaufgaben erst Denkanstöße statt sofort der Lösung.
+- **Notizen:** mit Apple Pencil (Druck, Neigung, Schweben mit Schnellmenü, Handballen-Erkennung), KI macht Karteikarten daraus.
+- **Spiele:** Memory, Blitzrunde und Rangliste der Gruppe.
+- **Klassenarbeiten:** Termin eintragen, die App plant das tägliche Pensum.
+- **Stapel teilen**, **Bilder auf Karten**, **tägliche Erinnerungen** aufs Handy.
 - **Statistik:** Lernserie, Tagesziel, Abfragen der letzten 14 Tage, Lernstand und Notenverlauf.
 - Hell („Heft“) oder dunkel („Tafel“), offline nutzbar, als App auf den Startbildschirm legbar.
 

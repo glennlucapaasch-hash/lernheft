@@ -110,6 +110,14 @@ function kontenBereich(ctx, ich) {
             } }, 'Löschen'))))))));
 }
 
+function sicherungBereich() {
+  return h('section', { class: 'blatt' },
+    h('h2', null, 'Sicherung'),
+    h('p', null, 'Der Server legt jede Nacht automatisch eine Sicherung aller Konten und Lerndaten an und hebt die letzten 14 auf (Ordner sicherungen in /opt/lernheft-daten). Falls der ganze Server ausfällt, hilft nur eine Kopie woanders – lade dir ab und zu eine herunter.'),
+    h('a', { class: 'knopf', href: '/api/verwaltung/sicherung', download: '' }, 'Sicherung herunterladen'),
+    h('p', { class: 'hinweis' }, 'Die heruntergeladene Datei enthält keinen API-Schlüssel, aber alle Lerndaten – gib sie nicht weiter.'));
+}
+
 export function verwaltung(ctx) {
   const ich = ctx.konto;
   if (!ich?.admin) return h('div', { class: 'seite' }, h('p', null, 'Diesen Bereich sieht nur der Admin.'));
@@ -120,5 +128,5 @@ export function verwaltung(ctx) {
     ui.fehler && h('div', { class: 'blatt meldung meldung-fehler', role: 'alert' }, h('p', null, ui.fehler)),
     !ui.daten
       ? h('div', { class: 'blatt warten', role: 'status' }, h('p', null, 'Lade …'))
-      : [kontenBereich(ctx, ich), kiBereich(ctx)]);
+      : [kontenBereich(ctx, ich), kiBereich(ctx), sicherungBereich()]);
 }
