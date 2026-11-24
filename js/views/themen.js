@@ -5,7 +5,7 @@ import { FAECHER } from '../store.js';
 import { THEMEN, STUFEN, QUELLE } from '../themen-daten.js';
 import { kiVerfuegbar, themaKarten } from '../ai.js';
 
-const FACH_REIHE = ['mathe', 'deutsch', 'englisch', 'franzoesisch', 'spanisch'];
+const FACH_REIHE = ['mathe', 'deutsch', 'englisch', 'franzoesisch', 'spanisch', 'biologie', 'chemie', 'geschichte'];
 const ui = { suche: '', fach: 'alle', stufe: 'alle', offen: null, laden: false };
 const liste = THEMEN.map(([fach, stufe, titel, text, beispiel, merke], i) => ({ id: `t${i}`, fach, stufe, titel, text, beispiel, merke }));
 

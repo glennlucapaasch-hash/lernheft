@@ -9,6 +9,9 @@ export const FAECHER = {
   spanisch: { name: 'Spanisch', farbe: 'gelb', lang: 'es-ES', sprache: 'Spanische' },
   mathe: { name: 'Mathe', farbe: 'gruen' },
   deutsch: { name: 'Deutsch', farbe: 'lila' },
+  biologie: { name: 'Biologie', farbe: 'mint' },
+  chemie: { name: 'Chemie', farbe: 'orange' },
+  geschichte: { name: 'Geschichte', farbe: 'sand' },
   sonstiges: { name: 'Sonstiges', farbe: 'weiss' },
 };
 

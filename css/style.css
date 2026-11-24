@@ -252,6 +252,9 @@ progress::-moz-progress-bar { background: var(--koenigsblau); }
 .farbe-gruen { --kf: var(--k-gruen); }
 .farbe-weiss { --kf: var(--k-weiss); }
 .farbe-lila { --kf: #e8defa; }
+.farbe-mint { --kf: #d2f1ea; }
+.farbe-orange { --kf: #ffe2c6; }
+.farbe-sand { --kf: #efe4d0; }
 
 .stapel-gitter { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: 1.2rem 1.1rem; }
 .stapel { display: grid; grid-template-rows: 2.2rem 1fr auto; text-align: left; padding: 0 0.9rem 0.7rem; min-height: 9rem; width: 100%; transition: transform 0.12s, box-shadow 0.12s; }
