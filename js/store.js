@@ -204,9 +204,14 @@ export function addCards(deckId, liste) {
 export function updateCard(id, patch) {
   const card = state.cards.find((c) => c.id === id);
   if (!card) return;
+  const vorher = `${card.front}|${card.back}`;
   for (const feld of ['front', 'back', 'note']) {
     if (patch[feld] !== undefined) card[feld] = String(patch[feld]).trim();
   }
+  if (`${card.front}|${card.back}` !== vorher) { delete card.pruefung; delete card.geprueftOk; }
+  if (patch.pruefung === null) delete card.pruefung;
+  else if (patch.pruefung) card.pruefung = patch.pruefung;
+  if (patch.geprueftOk) card.geprueftOk = true;
   for (const feld of ['bildVorn', 'bildHinten']) {
     if (patch[feld] === null) delete card[feld];
     else if (patch[feld]) card[feld] = patch[feld];

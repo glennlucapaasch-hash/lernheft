@@ -498,3 +498,41 @@ export async function themaKarten(titel, fach, stufe, erklaerung) {
   });
   return karten(r.karten, 12);
 }
+
+// Prüft selbst eingegebene Karten. Gemeldet wird nur, was die KI sicher für falsch hält.
+export async function kartenPruefen(karten, fach) {
+  const liste = karten.map((k, i) => `#${i} | Vorderseite: ${k.front} | Rückseite: ${k.back}${k.note ? ` | Hinweis: ${k.note}` : ''}`).join('\n');
+  const r = await frage({
+    maxTokens: 4000,
+    anweisung:
+      `Prüfe diese Karteikarten (Fach: ${fach}) auf inhaltliche Fehler, die beim Lernen etwas Falsches beibringen würden: ` +
+      'falsche Übersetzungen, Rechtschreibfehler im zu lernenden Wort, falscher Artikel oder falsches Geschlecht, falsche Rechenergebnisse, falsche Fakten. ' +
+      'Sei sehr vorsichtig: Melde eine Karte NUR, wenn du dir sicher bist, dass sie falsch ist. ' +
+      'Andere richtige Übersetzungen, Synonyme, Umgangssprache, britische/amerikanische Schreibweisen, fehlende Artikel auf der deutschen Seite, Abkürzungen oder Geschmacksfragen sind KEIN Fehler. ' +
+      'Im Zweifel: nicht melden. Gib für jede gemeldete Karte an, wie sicher du bist (0–100), und eine korrigierte Fassung.\n\n' + liste,
+    schema: {
+      type: 'object',
+      properties: {
+        fehler: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              nr: { type: 'integer' },
+              sicherheit: { type: 'integer', description: '0 bis 100: wie sicher die Karte falsch ist' },
+              front: { type: 'string', description: 'korrigierte Vorderseite' },
+              back: { type: 'string', description: 'korrigierte Rückseite' },
+              grund: { type: 'string', description: 'ein kurzer Satz auf Deutsch, was falsch ist' },
+            },
+            required: ['nr', 'sicherheit', 'front', 'back', 'grund'],
+          },
+        },
+      },
+      required: ['fehler'],
+    },
+  });
+  return (Array.isArray(r.fehler) ? r.fehler : [])
+    .filter((f) => Number(f?.sicherheit) >= 90 && karten[f.nr])
+    .map((f) => ({ nr: f.nr, front: txt(f.front) || karten[f.nr].front, back: txt(f.back, 1500) || karten[f.nr].back, grund: txt(f.grund, 300) }))
+    .filter((f) => f.front !== karten[f.nr].front || f.back !== karten[f.nr].back);
+}

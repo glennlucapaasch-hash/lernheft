@@ -5,7 +5,7 @@ import { stufe, STUFEN, STUFEN_NAMEN } from '../srs.js';
 import { lernenStarten } from './lernen.js';
 import { stapelKachel } from './start.js';
 import { bildAlsDaten } from '../bild.js';
-import { istServerModus } from '../ai.js';
+import { istServerModus, kiVerfuegbar, kartenPruefen } from '../ai.js';
 import { sendenDialog } from './senden.js';
 
 const serverApi = async (pfad, opts = {}) => {
@@ -66,6 +66,34 @@ function stapelDialog(ctx, deck) {
       h('div', { class: 'reihe reihe-ende' }, h('button', { class: 'knopf knopf-haupt', type: 'submit' }, deck ? 'Speichern' : 'Stapel anlegen'))));
 }
 
+// ---------- KI-Prüfung: meldet nur Karten, die sicher falsch sind ----------
+const pruefung = { laeuft: new Set() };
+export async function kartenPruefenLassen(ctx, deckId, karten, { leise = false } = {}) {
+  const deck = store.getDeck(deckId);
+  const offen = karten.filter((c) => c.front && c.back && !c.geprueftOk);
+  if (!deck || !offen.length) return;
+  if (!(await kiVerfuegbar())) { if (!leise) toast('Für die Prüfung braucht die App die KI.', 'fehler'); return; }
+  pruefung.laeuft.add(deckId);
+  if (location.hash === '#karten') ctx.refresh();
+  let gefunden = 0;
+  try {
+    for (let i = 0; i < offen.length; i += 40) {
+      const teil = offen.slice(i, i + 40);
+      const fehler = await kartenPruefen(teil, FAECHER[deck.fach]?.name || 'Sonstiges');
+      for (const f of fehler) {
+        const c = teil[f.nr];
+        if (store.getState().cards.some((x) => x.id === c.id)) { store.updateCard(c.id, { pruefung: { front: f.front, back: f.back, grund: f.grund } }); gefunden += 1; }
+      }
+    }
+    if (gefunden) toast(`⚠️ ${gefunden === 1 ? 'Eine Karte' : `${gefunden} Karten`} in „${deck.name}“ ${gefunden === 1 ? 'ist' : 'sind'} sehr wahrscheinlich falsch – tippe sie an.`, 'fehler');
+    else if (!leise) toast('Geprüft – die KI hat keine Fehler gefunden. ✅');
+  } catch (e) {
+    if (!leise) toast(e.message, 'fehler');
+  }
+  pruefung.laeuft.delete(deckId);
+  if (location.hash === '#karten') ctx.refresh();
+}
+
 function kartenDialog(ctx, deck, karte) {
   const istMathe = deck.fach === 'mathe';
   const front = h('textarea', { rows: '2', maxlength: '600' }, karte?.front || '');
@@ -75,8 +103,13 @@ function kartenDialog(ctx, deck, karte) {
   const speichern = (weiter) => {
     if (!front.value.trim() && !bilder.bildVorn) { front.focus(); return; }
     if (!back.value.trim() && !bilder.bildHinten) { back.focus(); return; }
-    if (karte) store.updateCard(karte.id, { front: front.value, back: back.value, note: note.value, bildVorn: bilder.bildVorn, bildHinten: bilder.bildHinten });
-    else store.addCards(deck.id, [{ front: front.value, back: back.value, note: note.value, ...bilder }]);
+    let geaendert;
+    if (karte) {
+      const vorher = `${karte.front}|${karte.back}`;
+      store.updateCard(karte.id, { front: front.value, back: back.value, note: note.value, bildVorn: bilder.bildVorn, bildHinten: bilder.bildHinten });
+      geaendert = vorher !== `${karte.front}|${karte.back}` ? [karte] : [];
+    } else geaendert = store.addCards(deck.id, [{ front: front.value, back: back.value, note: note.value, ...bilder }]);
+    if (geaendert.length) kartenPruefenLassen(ctx, deck.id, geaendert, { leise: true });
     if (weiter) {
       front.value = ''; back.value = ''; note.value = '';
       zu(); kartenDialog(ctx, deck); return;
@@ -84,8 +117,16 @@ function kartenDialog(ctx, deck, karte) {
       toast('Karte gespeichert.');
     } else zu();
   };
+  const p = karte?.pruefung;
   const zu = modal(karte ? 'Karte bearbeiten' : 'Neue Karte',
     h('form', { onsubmit: (e) => { e.preventDefault(); speichern(false); } },
+      p && h('div', { class: 'pruef-hinweis', role: 'alert' },
+        h('strong', null, '⚠️ Die KI ist sich sicher: Hier stimmt etwas nicht.'),
+        h('p', null, p.grund),
+        h('p', null, 'Vorschlag: ', h('span', { class: 'pruef-vorschlag' }, `${p.front} → ${p.back}`)),
+        h('div', { class: 'reihe' },
+          h('button', { type: 'button', class: 'knopf knopf-haupt knopf-mini', onclick: () => { store.updateCard(karte.id, { front: p.front, back: p.back }); toast('Korrigiert.'); zu(); } }, 'Vorschlag übernehmen'),
+          h('button', { type: 'button', class: 'knopf knopf-mini', onclick: () => { store.updateCard(karte.id, { pruefung: null, geprueftOk: true }); toast('Alles klar, die Karte bleibt so.'); zu(); } }, 'Ist richtig so'))),
       feld(istMathe ? 'Vorderseite (Aufgabe)' : FAECHER[deck.fach].lang ? `Vorderseite (${FAECHER[deck.fach].name})` : 'Vorderseite (Frage)', front),
       bildFeld('Bild vorne', bilder.bildVorn, (b) => { bilder.bildVorn = b; }),
       feld(istMathe ? 'Rückseite (Ergebnis)' : FAECHER[deck.fach].lang ? 'Rückseite (Deutsch)' : 'Rückseite (Antwort)', back),
@@ -109,8 +150,9 @@ function listenDialog(ctx, deck) {
       e.preventDefault();
       const karten = listeLesen(text.value);
       if (!karten.length) { text.focus(); return; }
-      store.addCards(deck.id, karten);
+      const neu = store.addCards(deck.id, karten);
       toast(`${mehrzahl(karten.length, 'Karte', 'Karten')} hinzugefügt.`);
+      kartenPruefenLassen(ctx, deck.id, neu, { leise: true });
       zu();
       ctx.refresh();
     } },
@@ -188,8 +230,9 @@ function geteiltBereich(ctx) {
             try {
               const voll = await serverApi(`/api/geteilt/${g.id}`);
               const deck = store.addDeck(voll.name, voll.fach);
-              store.addCards(deck.id, voll.karten);
+              const neu = store.addCards(deck.id, voll.karten);
               toast(`„${voll.name}“ ist jetzt in deinen Karten.`);
+              kartenPruefenLassen(ctx, deck.id, neu, { leise: true });
               ctx.go('karten', { deckId: deck.id });
             } catch (e) { toast(e.message, 'fehler'); }
           } }, 'Übernehmen'),
@@ -229,7 +272,7 @@ function detail(ctx, deck) {
         h('button', { class: 'karten-zeile', onclick: () => kartenDialog(ctx, deck, c), 'aria-label': `Karte bearbeiten: ${c.front}` },
           h('span', { class: 'kz-vorn' }, c.bildVorn && icon('bild', 15), c.front || '(Bild)'),
           h('span', { class: 'kz-hinten' }, c.back),
-          h('span', { class: `kz-stufe stufe-text-${stufe(c.srs)}` }, STUFEN_NAMEN[stufe(c.srs)])))));
+          c.pruefung ? h('span', { class: 'kz-warnung' }, '⚠️ prüfen') : h('span', { class: `kz-stufe stufe-text-${stufe(c.srs)}` }, STUFEN_NAMEN[stufe(c.srs)])))));
     if (!treffer.length) liste.append(h('li', { class: 'hinweis' }, q ? 'Keine Karte passt zur Suche.' : 'Noch keine Karten in diesem Stapel.'));
   };
   listeFuellen();
@@ -249,9 +292,13 @@ function detail(ctx, deck) {
           if (ja) { store.deleteDeck(deck.id); ui.deckId = null; toast('Stapel gelöscht.'); ctx.refresh(); }
         } }, icon('muell')))),
     alle.length > 0 && stufenLeiste(deck.id),
+    alle.some((c) => c.pruefung) && h('div', { class: 'pruef-hinweis' }, h('strong', null, `⚠️ ${mehrzahl(alle.filter((c) => c.pruefung).length, 'Karte ist', 'Karten sind')} wahrscheinlich falsch.`), h('p', null, 'Sie sind unten mit „prüfen“ markiert. Tippe sie an, um den Vorschlag der KI zu sehen.')),
     h('div', { class: 'reihe werkzeuge' },
       h('button', { class: 'knopf', onclick: () => kartenDialog(ctx, deck) }, icon('plus', 18), 'Karte'),
       h('button', { class: 'knopf', onclick: () => listenDialog(ctx, deck) }, 'Liste einfügen'),
+      pruefung.laeuft.has(deck.id)
+        ? h('span', { class: 'pruef-laeuft', role: 'status' }, 'KI prüft die Karten …')
+        : alle.length > 0 && h('button', { class: 'knopf', onclick: () => kartenPruefenLassen(ctx, deck.id, alle) }, '✓ Mit KI prüfen'),
       h('button', { class: 'knopf', onclick: () => ctx.go('scannen', { deckId: deck.id }) }, icon('scan', 18), 'Seite scannen'),
       istServerModus() && alle.length > 0 && h('button', { class: 'knopf', onclick: () => sendenDialog({
         titel: `„${deck.name}“ schicken`,

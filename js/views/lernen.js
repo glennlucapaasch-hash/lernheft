@@ -98,7 +98,7 @@ function lernen(ctx) {
       h('span', null, `${Math.min(sitzung.erledigt + 1, sitzung.gesamt)} von ${sitzung.gesamt}`),
       h('progress', { max: sitzung.gesamt, value: sitzung.erledigt, 'aria-label': 'Fortschritt' })));
 
-  const hinweisZeile = offen && karte.note && h('p', { class: 'karte-notiz' }, karte.note);
+  const hinweisZeile = offen && (karte.note || karte.pruefung) && h('p', { class: 'karte-notiz' }, karte.pruefung ? `⚠️ Laut KI wahrscheinlich falsch – richtig wäre: ${karte.pruefung.front} → ${karte.pruefung.back}` : karte.note);
 
   // ---------- Karteikarte umdrehen ----------
   if (modus === 'umdrehen') {

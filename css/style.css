@@ -761,9 +761,9 @@ mark { background-size: 100% 100%; background-repeat: no-repeat; animation: mark
 .spiel-stand { color: var(--grau); font-size: .9rem; }
 .spiel-pokal { color: var(--marker); filter: drop-shadow(2px 2px 0 var(--tinte)); }
 .spiel-ende { text-align: center; display: grid; justify-items: center; gap: .5rem; }
-.memory { display: grid; grid-template-columns: repeat(4, 1fr); gap: .6rem; perspective: 1000px; }
-@media (max-width: 560px) { .memory { grid-template-columns: repeat(3, 1fr); } }
-.memory-karte { aspect-ratio: 3 / 4; padding: 0; border: 0; background: transparent; }
+.memory { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .6rem; width: 100%; }
+@media (max-width: 560px) { .memory { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .45rem; } }
+.memory-karte { aspect-ratio: 3 / 4; padding: 0; border: 0; background: transparent; min-width: 0; width: 100%; }
 .memory-innen { display: grid; width: 100%; height: 100%; }
 .memory-rueck, .memory-vorn { grid-area: 1 / 1; border-radius: 8px; display: grid; place-items: center; padding: .4rem; overflow: hidden; }
 .memory-vorn { display: none; }
@@ -976,3 +976,16 @@ h1.handschrift::after { content: ""; position: absolute; left: 0; right: 0; bott
 .konto-loeschen summary { color: var(--rotstift); }
 .konto-loeschen > * + * { margin-top: .6rem; }
 .konto-loeschen input { flex: 1 1 12rem; width: auto; }
+
+.memory-vorn { font-size: clamp(.7rem, 3.4vw, 1.05rem); hyphens: auto; word-break: break-word; }
+.spiel, .spiel > * { min-width: 0; }
+
+/* KI-Prüfung von Karten */
+.pruef-hinweis { display: grid; gap: .5rem; padding: .8rem .9rem; border-radius: 8px; border: 1.5px solid #d4700a; background: #fff3e6; color: #5a3200; }
+[data-theme="tafel"] .pruef-hinweis { background: #3a2a18; color: #ffd9a8; }
+.pruef-hinweis strong { display: flex; align-items: center; gap: .4rem; }
+.pruef-vorschlag { font-weight: 700; }
+.kz-warnung { color: #d4700a; font-weight: 700; font-size: .82rem; white-space: nowrap; }
+.pruef-laeuft { display: inline-flex; align-items: center; gap: .4rem; color: var(--grau); font-size: .9rem; }
+.pruef-laeuft::before { content: ""; width: .9rem; height: .9rem; border-radius: 50%; border: 2px solid var(--koenigsblau); border-right-color: transparent; animation: drehen .8s linear infinite; }
+@keyframes drehen { to { transform: rotate(360deg); } }
