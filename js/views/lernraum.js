@@ -380,6 +380,9 @@ function whiteboard(R) {
     const s = aktuell; aktuell = null;
     for (let i = 0; i < s.p.length; i += 1500) api(`/api/raum/${R.code}/zeichnen`, { strich: { ...s, p: s.p.slice(Math.max(0, i - 1), i + 1500) } }).catch(() => {});
   };
+  c.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+  c.addEventListener('contextmenu', (e) => e.preventDefault());
+  c.addEventListener('selectstart', (e) => e.preventDefault());
   c.addEventListener('pointerup', ende);
   c.addEventListener('pointercancel', ende);
   const werkzeuge = h('div', { class: 'lr-werkzeuge' },

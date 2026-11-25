@@ -45,7 +45,10 @@ export function geteiltAnlegen(von, { name, fach, karten, an, typ, notiz }) {
     if (!notiz || !Array.isArray(notiz.striche)) throw Object.assign(new Error('Die Notiz ist leer.'), { status: 400 });
     const liste = lesen('geteilt.json', []);
     const e = { id: crypto.randomUUID(), typ: 'notiz', von, an: empfaenger, name: String(name || 'Notiz').slice(0, 80), fach: String(fach || 'sonstiges').slice(0, 20), datum: Date.now(), karten: [],
-      notiz: { papier: String(notiz.papier || 'karo').slice(0, 10), seiten: Math.min(50, Number(notiz.seiten) || 1), text: String(notiz.text || '').slice(0, 20000), striche: notiz.striche.slice(0, 20000) } };
+      notiz: { papier: String(notiz.papier || 'karo').slice(0, 10), seiten: Math.min(50, Number(notiz.seiten) || 1), text: String(notiz.text || '').slice(0, 20000), striche: notiz.striche.slice(0, 20000),
+        papierFarbe: String(notiz.papierFarbe || 'weiss').slice(0, 10), cover: /^#[0-9a-f]{6}$/i.test(notiz.cover) ? notiz.cover : '#2440b3',
+        texte: (Array.isArray(notiz.texte) ? notiz.texte : []).slice(0, 500).map((t) => ({ id: String(t.id || '').slice(0, 40), x: Number(t.x) || 0, y: Number(t.y) || 0, t: String(t.t || '').slice(0, 2000), g: Math.min(120, Number(t.g) || 28), f: /^#[0-9a-f]{6}$/i.test(t.f) ? t.f : '#1b2a5c', fett: Boolean(t.fett) })),
+        bilder: (Array.isArray(notiz.bilder) ? notiz.bilder : []).slice(0, 30).filter((b) => /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(b.src || '') && b.src.length < 3e6).map((b) => ({ id: String(b.id || '').slice(0, 40), src: b.src, x: Number(b.x) || 0, y: Number(b.y) || 0, w: Number(b.w) || 100, h: Number(b.h) || 100 })) } };
     liste.unshift(e);
     schreiben('geteilt.json', liste.slice(0, 300));
     return { id: e.id };
