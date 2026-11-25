@@ -15,7 +15,8 @@ const MARKER = [['#ffe14d', 'Gelb'], ['#8ee89b', 'Grün'], ['#ffaecb', 'Pink'], 
 const DICKEN = [[1.6, 'Fein'], [3, 'Mittel'], [5.5, 'Dick']];
 const PAPIERE = { karo: 'Karo', linien: 'Liniert', leer: 'Blanko' };
 
-const ui = { id: null, werkzeug: 'stift', letztes: 'radierer', farbe: FARBEN[0][0], marker: MARKER[0][0], dicke: 3, nurStift: false };
+const ui = { id: null, werkzeug: 'stift', letztes: 'radierer', farbe: FARBEN[0][0], marker: MARKER[0][0], dicke: 3, radierGroesse: 18, nurStift: false };
+const RADIERER = [[8, 'Radierer klein'], [18, 'Radierer mittel'], [34, 'Radierer groß'], [60, 'Radierer riesig']];
 
 const liste = () => store.getState().notizen;
 const finden = (id) => liste().find((n) => n.id === id);
@@ -222,7 +223,7 @@ function editor(ctx, n) {
 
   function radieren(e) {
     const [x, y] = pos(e);
-    const r = ui.dicke * 3 + 8;
+    const r = ui.radierGroesse;
     const neu = striche.filter((s) => !s.p.some((pt) => (pt[0] - x) ** 2 + (pt[1] - y) ** 2 < (r + s.d) ** 2));
     if (neu.length !== striche.length) { striche = neu; alles(); }
     overlayLeeren();
@@ -261,7 +262,8 @@ function editor(ctx, n) {
     menueEl = h('div', { class: 'schwebe-menue', role: 'toolbar', 'aria-label': 'Schnellauswahl', style: `left:${Math.min(cx - r.left + 22, r.width - 250)}px;top:${Math.max(cy - r.top - 70, 8)}px` },
       [['stift', 'Stift'], ['marker', 'Textmarker'], ['radierer', 'Radierer']].map(([id, name]) =>
         h('button', { class: `werkzeug ${w === id ? 'ist-aktiv' : ''}`, 'aria-label': name, onclick: wahl(() => werkzeug(id)) }, icon(id))),
-      w !== 'radierer' && h('span', { class: 'schwebe-trenner' }),
+      h('span', { class: 'schwebe-trenner' }),
+      w === 'radierer' && RADIERER.map(([g, name]) => h('button', { class: `dicke radier-groesse ${ui.radierGroesse === g ? 'ist-aktiv' : ''}`, 'aria-label': name, onclick: wahl(() => { ui.radierGroesse = g; }) }, h('span', { style: { width: `${Math.min(26, g * 0.45 + 4)}px`, height: `${Math.min(26, g * 0.45 + 4)}px` } }))),
       w !== 'radierer' && farben.map(([f, name]) =>
         h('button', { class: `farbpunkt ${(w === 'marker' ? ui.marker : ui.farbe) === f ? 'ist-aktiv' : ''}`, style: `--f:${f}`, 'aria-label': name, onclick: wahl(() => { if (w === 'marker') ui.marker = f; else ui.farbe = f; }) })),
       h('span', { class: 'schwebe-trenner' }),
@@ -292,7 +294,7 @@ function editor(ctx, n) {
     const [x, y] = pos(e);
     const w = ui.werkzeug;
     go.setLineDash([]);
-    if (w === 'radierer') { go.strokeStyle = 'rgba(196,39,60,.6)'; go.lineWidth = 2 / k; go.beginPath(); go.arc(x, y, ui.dicke * 3 + 8, 0, Math.PI * 2); go.stroke(); return; }
+    if (w === 'radierer') { go.strokeStyle = 'rgba(196,39,60,.6)'; go.lineWidth = 2 / k; go.beginPath(); go.arc(x, y, ui.radierGroesse, 0, Math.PI * 2); go.stroke(); return; }
     go.fillStyle = w === 'marker' ? ui.marker : ui.farbe;
     go.globalAlpha = 0.45;
     go.beginPath(); go.arc(x, y, Math.max(2, (w === 'marker' ? ui.dicke * 6 : ui.dicke * 1.2) / 2), 0, Math.PI * 2); go.fill();
@@ -390,8 +392,11 @@ function editor(ctx, n) {
         h('button', { class: `werkzeug ${w === id ? 'ist-aktiv' : ''}`, 'aria-pressed': String(w === id), 'aria-label': name, title: name, onclick: () => werkzeug(id) }, icon(ic)))),
       w !== 'radierer' && h('div', { class: 'leiste-gruppe' }, farben.map(([f, name]) =>
         h('button', { class: `farbpunkt ${aktiv === f ? 'ist-aktiv' : ''}`, style: `--f:${f}`, 'aria-label': name, 'aria-pressed': String(aktiv === f), onclick: () => { if (w === 'marker') ui.marker = f; else ui.farbe = f; leisteZeichnen(); } }))),
-      h('div', { class: 'leiste-gruppe' }, DICKEN.map(([d, name]) =>
-        h('button', { class: `dicke ${ui.dicke === d ? 'ist-aktiv' : ''}`, 'aria-label': name, 'aria-pressed': String(ui.dicke === d), onclick: () => { ui.dicke = d; leisteZeichnen(); } }, h('span', { style: { width: `${d * 2.2 + 2}px`, height: `${d * 2.2 + 2}px` } })))),
+      w === 'radierer'
+        ? h('div', { class: 'leiste-gruppe', role: 'group', 'aria-label': 'Radierer-Größe' }, RADIERER.map(([g, name]) =>
+          h('button', { class: `dicke radier-groesse ${ui.radierGroesse === g ? 'ist-aktiv' : ''}`, 'aria-label': name, title: name, 'aria-pressed': String(ui.radierGroesse === g), onclick: () => { ui.radierGroesse = g; leisteZeichnen(); } }, h('span', { style: { width: `${Math.min(30, g * 0.5 + 4)}px`, height: `${Math.min(30, g * 0.5 + 4)}px` } }))))
+        : h('div', { class: 'leiste-gruppe' }, DICKEN.map(([d, name]) =>
+          h('button', { class: `dicke ${ui.dicke === d ? 'ist-aktiv' : ''}`, 'aria-label': name, 'aria-pressed': String(ui.dicke === d), onclick: () => { ui.dicke = d; leisteZeichnen(); } }, h('span', { style: { width: `${d * 2.2 + 2}px`, height: `${d * 2.2 + 2}px` } })))),
       h('div', { class: 'leiste-gruppe' }, undoK, redoK));
     knoepfeAktualisieren();
     tauschK.setAttribute('aria-label', `Wechseln zu ${ui.letztes === 'radierer' ? 'Radierer' : ui.letztes === 'marker' ? 'Textmarker' : 'Stift'}`);

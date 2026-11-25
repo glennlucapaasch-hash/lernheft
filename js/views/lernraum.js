@@ -84,32 +84,64 @@ function neuerRaum(ctx, stand, lokal, ice) {
     mikro: Boolean(lokal?.getAudioTracks().length), kamera: Boolean(lokal?.getVideoTracks().length), stand,
     el: {}, timerAlarm: null, tab: 'whiteboard', richtung: 'user',
   };
-  R.senden = (an, typ, daten) => api(`/api/raum/${R.code}/signal`, { an, typ, daten }).catch(() => {});
   R.statusSenden = () => api(`/api/raum/${R.code}/status`, { kamera: R.kamera, mikro: R.mikro, bildschirm: Boolean(R.bildschirmTrack) }).catch(() => {});
   return R;
 }
 
-function peerAnlegen(R, name, seit) {
-  const pc = new RTCPeerConnection({ iceServers: R.ice.iceServers });
-  const p = { pc, name, seit, polite: R.ich > name, makingOffer: false, ignoreOffer: false, stream: new MediaStream(), kachel: null };
-  // Nur eine Seite (die „unhöfliche“) legt die Spuren an und schickt das Angebot. Die andere antwortet und hängt ihre
-  // eigenen Spuren an die empfangenen Spuren an. So gibt es nie zwei Angebote gleichzeitig – das führte zu Ton nur in eine Richtung.
+// Eine Verbindung pro Person. Die Person mit dem „kleineren“ Namen baut auf (unhöflich), die andere antwortet (höflich).
+// Jede Verbindung hat eine Generation g: Nach einem Neuaufbau werden alte Signale verworfen.
+function peerAnlegen(R, name, seit, gen) {
+  const pc = new RTCPeerConnection({ iceServers: R.ice.iceServers, iceCandidatePoolSize: 2 });
+  const p = { pc, name, seit, gen: gen || `${Date.now()}${Math.random().toString(36).slice(2, 6)}`, polite: R.ich > name, makingOffer: false, ignoreOffer: false, stream: new MediaStream(), kachel: R.peers.get(name)?.kachel || null, iceWarte: [], start: Date.now(), verbunden: false, kette: Promise.resolve() };
+  // Signale an diese Person strikt der Reihe nach schicken (sonst überholt ein ICE-Kandidat das Angebot)
+  p.senden = (typ, daten) => { p.kette = p.kette.then(() => api(`/api/raum/${R.code}/signal`, { an: name, typ, daten: { g: p.gen, d: daten } })).catch(() => {}); return p.kette; };
   if (!p.polite) {
     pc.addTransceiver(R.lokal?.getAudioTracks()[0] || 'audio', { direction: 'sendrecv' });
     pc.addTransceiver(R.bildschirmTrack || R.kameraTrack || 'video', { direction: 'sendrecv' });
   }
-  pc.ontrack = (e) => { if (!p.stream.getTracks().includes(e.track)) p.stream.addTrack(e.track); const v = p.kachel?.querySelector('video'); if (v && v.srcObject !== p.stream) { v.srcObject = p.stream; } abspielen(R, v); };
-  pc.onicecandidate = ({ candidate }) => { if (candidate) R.senden(name, 'ice', candidate.toJSON()); };
+  pc.ontrack = (e) => {
+    if (!p.stream.getTracks().includes(e.track)) p.stream.addTrack(e.track);
+    e.track.onunmute = () => abspielen(R, p.kachel?.querySelector('video'));
+    const v = p.kachel?.querySelector('video');
+    if (v && v.srcObject !== p.stream) v.srcObject = p.stream;
+    abspielen(R, v);
+  };
+  pc.onicecandidate = ({ candidate }) => { if (candidate) p.senden('ice', candidate.toJSON()); };
   pc.onnegotiationneeded = async () => {
     if (p.polite) return;
-    try { p.makingOffer = true; await pc.setLocalDescription(); R.senden(name, 'offer', pc.localDescription.toJSON()); } catch { /* nächster Versuch */ } finally { p.makingOffer = false; }
+    try { p.makingOffer = true; await pc.setLocalDescription(); p.senden('offer', pc.localDescription.toJSON()); } catch { /* nächster Versuch */ } finally { p.makingOffer = false; }
   };
   pc.onconnectionstatechange = () => {
-    p.kachel?.classList.toggle('verbindet', !['connected', 'completed'].includes(pc.connectionState));
-    if (pc.connectionState === 'failed' && !p.polite) { try { pc.restartIce(); } catch { /* egal */ } }
+    const st = pc.connectionState;
+    if (st === 'connected') { p.verbunden = true; p.wackelt = null; }
+    if (st === 'disconnected' && !p.wackelt) p.wackelt = Date.now();
+    kachelStatus(R, p);
   };
+  // Alte Verbindung (gleicher Name) sauber ersetzen
+  const alt = R.peers.get(name);
+  if (alt && alt !== p) { try { alt.pc.close(); } catch { /* egal */ } }
   R.peers.set(name, p);
+  if (p.kachel) { p.kachel.querySelector('video').srcObject = p.stream; }
   return p;
+}
+
+function kachelStatus(R, p) {
+  if (!p.kachel) return;
+  const st = p.pc.connectionState;
+  const ok = st === 'connected';
+  p.kachel.classList.toggle('verbindet', !ok);
+  p.kachel.dataset.status = ok ? '' : (Date.now() - p.start > 12000 ? 'Verbindung wird neu aufgebaut …' : 'verbindet …');
+}
+
+// Neu verbinden, wenn eine Verbindung hängt oder abgerissen ist. Nur die aufbauende Seite entscheidet das.
+function verbindungenPruefen(R) {
+  for (const p of [...R.peers.values()]) {
+    kachelStatus(R, p);
+    if (p.polite) continue;
+    const st = p.pc.connectionState;
+    const haengt = (!p.verbunden && Date.now() - p.start > 12000) || st === 'failed' || (p.wackelt && Date.now() - p.wackelt > 6000);
+    if (haengt) { R.neuVersuche = (R.neuVersuche || 0) + 1; peerAnlegen(R, p.name, p.seit); }
+  }
 }
 
 function peerWeg(R, name) {
@@ -121,28 +153,39 @@ function peerWeg(R, name) {
 }
 
 async function signalVerarbeiten(R, s) {
+  const g = s.daten?.g;
+  const daten = s.daten?.d;
   let p = R.peers.get(s.von);
-  if (!p) return;
+  if (!p || !g) return;
+  // Höfliche Seite: neues Angebot mit neuer Generation → Verbindung neu anlegen
+  if (g !== p.gen) {
+    if (p.polite && s.typ === 'offer') p = peerAnlegen(R, s.von, p.seit, g);
+    else return; // veraltetes Signal
+  }
   const { pc } = p;
   try {
     if (s.typ === 'offer' || s.typ === 'answer') {
       const kollision = s.typ === 'offer' && (p.makingOffer || pc.signalingState !== 'stable');
       p.ignoreOffer = !p.polite && kollision;
       if (p.ignoreOffer) return;
-      await pc.setRemoteDescription(s.daten);
+      if (s.typ === 'answer' && pc.signalingState !== 'have-local-offer') return;
+      await pc.setRemoteDescription(daten);
+      for (const c of p.iceWarte.splice(0)) await pc.addIceCandidate(c).catch(() => {});
       if (s.typ === 'offer') {
-        // Eigene Spuren an die angebotenen Kanäle hängen
         for (const t of pc.getTransceivers()) {
           const art = t.receiver.track?.kind;
           const spur = art === 'audio' ? R.lokal?.getAudioTracks()[0] : art === 'video' ? (R.bildschirmTrack || R.kameraTrack) : null;
           if (t.direction !== 'sendrecv') t.direction = 'sendrecv';
           if (spur && t.sender.track !== spur) await t.sender.replaceTrack(spur);
         }
-        await pc.setLocalDescription(); R.senden(s.von, 'answer', pc.localDescription.toJSON()); }
+        await pc.setLocalDescription();
+        p.senden('answer', pc.localDescription.toJSON());
+      }
     } else if (s.typ === 'ice') {
-      try { await pc.addIceCandidate(s.daten); } catch (e) { if (!p.ignoreOffer) throw e; }
+      if (!pc.remoteDescription) p.iceWarte.push(daten); // zu früh – merken bis die Beschreibung da ist
+      else await pc.addIceCandidate(daten).catch(() => {});
     }
-  } catch { /* einzelnes kaputtes Signal ignorieren */ }
+  } catch { /* einzelnes kaputtes Signal ignorieren – die Prüfung baut notfalls neu auf */ }
 }
 
 async function abfragen(ctx, R) {
@@ -162,6 +205,7 @@ async function abfragen(ctx, R) {
     zeichneLeute(R);
     zeichneKarte(ctx, R);
     zeichneTimer(R);
+    verbindungenPruefen(R);
   } catch (e) {
     if (e.status === 404 || e.status === 403) { toast('Der Lernraum wurde geschlossen.', 'fehler'); raumVerlassen(R); ctx.refresh(); return; }
   }
@@ -303,11 +347,11 @@ function whiteboard(R) {
   const c = h('canvas', { class: 'lr-tafel', width: W, height: HOEHE, 'aria-label': 'Gemeinsames Whiteboard' });
   const g = c.getContext('2d');
   g.lineCap = 'round'; g.lineJoin = 'round';
-  const wb = { farbe: FARBEN[0], breite: 4, radierer: false };
+  const wb = { farbe: FARBEN[0], breite: 4, radierer: false, radierBreite: 40 };
   const zeichnen = (s) => {
     g.save();
     g.globalCompositeOperation = s.radierer ? 'destination-out' : 'source-over';
-    g.strokeStyle = s.farbe; g.lineWidth = s.radierer ? s.breite * 6 : s.breite;
+    g.strokeStyle = s.farbe; g.lineWidth = s.breite;
     g.beginPath();
     s.p.forEach(([x, y], i) => (i ? g.lineTo(x, y) : g.moveTo(x, y)));
     if (s.p.length === 1) g.lineTo(s.p[0][0] + 0.1, s.p[0][1]);
@@ -319,14 +363,15 @@ function whiteboard(R) {
   c.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'touch' && e.isPrimary === false) return;
     c.setPointerCapture(e.pointerId);
-    aktuell = { farbe: wb.farbe, breite: wb.breite * (e.pointerType === 'pen' ? 0.5 + (e.pressure || 0.5) : 1), radierer: wb.radierer || e.button === 5, p: [pos(e)] };
+    const radiert = wb.radierer || e.button === 5;
+    aktuell = { farbe: wb.farbe, breite: radiert ? wb.radierBreite : wb.breite * (e.pointerType === 'pen' ? 0.5 + (e.pressure || 0.5) : 1), radierer: radiert, p: [pos(e)] };
     zeichnen(aktuell);
   });
   c.addEventListener('pointermove', (e) => {
     if (!aktuell) return;
     const [x, y] = pos(e); const [lx, ly] = aktuell.p.at(-1);
     if (Math.hypot(x - lx, y - ly) < 2) return;
-    g.save(); g.globalCompositeOperation = aktuell.radierer ? 'destination-out' : 'source-over'; g.strokeStyle = aktuell.farbe; g.lineWidth = aktuell.radierer ? aktuell.breite * 6 : aktuell.breite; g.lineCap = 'round';
+    g.save(); g.globalCompositeOperation = aktuell.radierer ? 'destination-out' : 'source-over'; g.strokeStyle = aktuell.farbe; g.lineWidth = aktuell.breite; g.lineCap = 'round';
     g.beginPath(); g.moveTo(lx, ly); g.lineTo(x, y); g.stroke(); g.restore();
     aktuell.p.push([x, y]);
   });
@@ -340,7 +385,8 @@ function whiteboard(R) {
   const werkzeuge = h('div', { class: 'lr-werkzeuge' },
     FARBEN.map((f) => h('button', { class: `lr-farbe ${f === wb.farbe ? 'ist-aktiv' : ''}`, style: `background:${f}`, 'aria-label': `Farbe ${f}`, onclick: (e) => { wb.farbe = f; wb.radierer = false; werkzeuge.querySelectorAll('button').forEach((b) => b.classList.remove('ist-aktiv')); e.currentTarget.classList.add('ist-aktiv'); } })),
     h('button', { class: 'lr-werkzeug', 'aria-label': 'Radierer', onclick: (e) => { wb.radierer = true; werkzeuge.querySelectorAll('button').forEach((b) => b.classList.remove('ist-aktiv')); e.currentTarget.classList.add('ist-aktiv'); } }, '🧽'),
-    h('select', { 'aria-label': 'Strichstärke', onchange: (e) => { wb.breite = Number(e.target.value); } }, [['2', 'Fein'], ['4', 'Normal'], ['9', 'Dick']].map(([v, t]) => h('option', { value: v, selected: v === '4' }, t))),
+    h('label', { class: 'lr-groesse' }, '✏️', h('select', { 'aria-label': 'Stiftstärke', onchange: (e) => { wb.breite = Number(e.target.value); } }, [['2', 'Fein'], ['4', 'Normal'], ['9', 'Dick'], ['16', 'Sehr dick']].map(([v, t]) => h('option', { value: v, selected: v === '4' }, t)))),
+    h('label', { class: 'lr-groesse' }, '🧽', h('select', { 'aria-label': 'Radierer-Größe', onchange: (e) => { wb.radierBreite = Number(e.target.value); } }, [['15', 'Klein'], ['40', 'Mittel'], ['80', 'Groß'], ['150', 'Riesig']].map(([v, t]) => h('option', { value: v, selected: v === '40' }, t)))),
     h('button', { class: 'knopf knopf-mini', onclick: async () => { if (await nachfragen('Tafel wischen?', 'Das Whiteboard wird für alle gelöscht.', 'Wischen')) R.wb.leeren(true); } }, 'Für alle wischen'));
   return h('div', { class: 'lr-wb' }, werkzeuge, h('div', { class: 'lr-tafel-rahmen' }, c));
 }

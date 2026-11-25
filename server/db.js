@@ -156,6 +156,20 @@ export function sitzungLoeschen(token) {
   schreiben('sitzungen.json', sitzungen);
 }
 
+// Alle anderen Geräte abmelden (z. B. wenn das Handy verloren ging)
+export function andereSitzungenLoeschen(name, token) {
+  aktuell();
+  const meins = tokenHash(token);
+  let n = 0;
+  for (const [t, s] of Object.entries(sitzungen)) if (s.name === name && t !== meins) { delete sitzungen[t]; n += 1; }
+  schreiben('sitzungen.json', sitzungen);
+  return n;
+}
+export function sitzungenZahl(name) {
+  aktuell();
+  return Object.values(sitzungen).filter((s) => s.name === name && s.bis > Date.now()).length;
+}
+
 export function zuVieleVersuche(ip) {
   const v = versuche.get(ip);
   return Boolean(v && v.anzahl >= 8 && Date.now() - v.seit < 15 * 60e3);
@@ -168,8 +182,11 @@ export function fehlversuch(ip) {
 
 // ---------- Einstellungen ----------
 export const einstellungen = () => { aktuell(); return { ...einst }; };
-export function einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt }) {
+export function einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt, turnUrl, turnSecret }) {
   aktuell();
+  if (typeof turnUrl === 'string') einst.turnUrl = /^turns?:[\w.-]+(:\d{2,5})?$/.test(turnUrl.trim()) ? turnUrl.trim() : '';
+  if (typeof turnSecret === 'string' && turnSecret.trim()) einst.turnSecret = turnSecret.trim().slice(0, 200);
+  if (turnSecret === null) einst.turnSecret = '';
   if (typeof kontaktName === 'string') einst.kontaktName = kontaktName.trim().slice(0, 100);
   if (typeof kontaktMail === 'string') einst.kontaktMail = kontaktMail.trim().slice(0, 120);
   if (typeof kontaktOrt === 'string') einst.kontaktOrt = kontaktOrt.trim().slice(0, 200);

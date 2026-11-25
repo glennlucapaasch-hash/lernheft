@@ -170,6 +170,8 @@ async function api(req, res, pfad) {
     db.sitzungLoeschen(token);
     return senden(res, 200, { ok: true }, { 'set-cookie': sitzungsCookie('', 0) });
   }
+  if (pfad === '/api/sitzungen' && methode === 'GET') return senden(res, 200, { anzahl: db.sitzungenZahl(konto.name) });
+  if (pfad === '/api/sitzungen' && methode === 'DELETE') return senden(res, 200, { abgemeldet: db.andereSitzungenLoeschen(konto.name, token) });
   if (pfad === '/api/ich' && methode === 'DELETE') {
     if (konto.admin) return fehler(res, 400, 'Der Admin kann sein Konto nicht selbst löschen.');
     const { passwort } = await koerper(req, 10000);
@@ -247,13 +249,13 @@ async function api(req, res, pfad) {
     if (pfad === '/api/verwaltung' && methode === 'GET') {
       const e = db.einstellungen();
       return senden(res, 200, {
-        einstellungen: { model: e.model, tageslimit: e.tageslimit, kontaktName: e.kontaktName || '', kontaktMail: e.kontaktMail || '', kontaktOrt: e.kontaktOrt || '', schluessel: e.apiKey ? `${e.apiKey.slice(0, 10)}…${e.apiKey.slice(-4)}` : '' },
+        einstellungen: { turnUrl: e.turnUrl || process.env.TURN_URL || '', turnGesetzt: Boolean(e.turnSecret || process.env.TURN_SECRET), model: e.model, tageslimit: e.tageslimit, kontaktName: e.kontaktName || '', kontaktMail: e.kontaktMail || '', kontaktOrt: e.kontaktOrt || '', schluessel: e.apiKey ? `${e.apiKey.slice(0, 10)}…${e.apiKey.slice(-4)}` : '' },
         konten: db.kontenListe(),
       });
     }
     if (pfad === '/api/verwaltung/einstellungen' && methode === 'PUT') {
-      const { apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt } = await koerper(req, 10000);
-      db.einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt });
+      const { apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt, turnUrl, turnSecret } = await koerper(req, 10000);
+      db.einstellungenSetzen({ apiKey, model, tageslimit, kontaktName, kontaktMail, kontaktOrt, turnUrl, turnSecret });
       return senden(res, 200, { ok: true });
     }
     if (pfad === '/api/verwaltung/konten' && methode === 'POST') {
@@ -314,6 +316,9 @@ const SICHERHEIT = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'same-origin',
   'x-frame-options': 'DENY',
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-resource-policy': 'same-origin',
+  'x-permitted-cross-domain-policies': 'none',
   'permissions-policy': 'camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=(), usb=(), interest-cohort=()',
   'cross-origin-opener-policy': 'same-origin',
   'cross-origin-resource-policy': 'same-origin',
@@ -333,6 +338,15 @@ function zuViele(adresse, live) {
 }
 setInterval(() => { const g = Date.now() - 120e3; for (const [k, v] of anfragen) if (v.seit < g) anfragen.delete(k); }, 300e3).unref();
 
+// Höchstens 30 falsche Codes in 10 Minuten pro Adresse (Lernraum, Live-Quiz)
+const codeFehler = new Map();
+function codeFehlversuch(adresse) {
+  const e = codeFehler.get(adresse);
+  if (!e || Date.now() - e.seit > 600e3) codeFehler.set(adresse, { seit: Date.now(), n: 1 }); else e.n += 1;
+}
+const codeGesperrt = (adresse) => { const e = codeFehler.get(adresse); return Boolean(e && Date.now() - e.seit <= 600e3 && e.n >= 30); };
+setInterval(() => { for (const [k, v] of codeFehler) if (Date.now() - v.seit > 600e3) codeFehler.delete(k); }, 600e3).unref();
+
 const server = http.createServer(async (req, res) => {
   for (const [k, v] of Object.entries(SICHERHEIT)) res.setHeader(k, v);
   try {
@@ -349,12 +363,15 @@ const server = http.createServer(async (req, res) => {
       res.end(f);
       return;
     }
+    if (/^\/api\/(raum|duell)\/\d/.test(roh) && codeGesperrt(ip(req))) { fehler(res, 429, 'Zu viele falsche Codes. Warte 10 Minuten.'); return; }
     if (roh.startsWith('/api/') && zuViele(ip(req), /^\/api\/(raum|duell)\//.test(roh))) { fehler(res, 429, 'Zu viele Anfragen. Warte eine Minute.'); return; }
     const pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (pfad.startsWith('/api/')) await api(req, res, pfad);
     else if (req.method === 'GET' || req.method === 'HEAD') await datei(req, res, pfad);
     else fehler(res, 405, 'Nicht erlaubt.');
   } catch (e) {
+    // Raten von Raum-/Quiz-Codes bremsen
+    if (e.status === 404 && /^\/api\/(raum|duell)\//.test(req.url || '')) codeFehlversuch(ip(req));
     if (!res.headersSent) fehler(res, e.status || 500, e.status ? e.message : 'Interner Fehler.');
     if (!e.status) console.error(e);
   }

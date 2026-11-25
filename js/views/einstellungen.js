@@ -128,6 +128,15 @@ function kontoBereich(ctx) {
     h('p', null, 'Angemeldet als ', h('strong', null, k.name), k.admin ? ' (Admin)' : '', '. Deine Karten, Chats und Klausuren werden auf dem Server gespeichert – du siehst sie auf jedem Gerät, auf dem du dich anmeldest.'),
     h('div', { class: 'reihe' },
       h('button', { class: 'knopf', onclick: passwortDialog }, 'Passwort ändern'),
+      h('button', { class: 'knopf', onclick: async () => {
+        try {
+          const r = await fetch('/api/sitzungen', { credentials: 'same-origin' }).then((x) => x.json());
+          if (r.anzahl <= 1) { toast('Du bist nur auf diesem Gerät angemeldet.'); return; }
+          if (!(await nachfragen('Andere Geräte abmelden?', `Du bist auf ${r.anzahl} Geräten angemeldet. Alle außer diesem werden abgemeldet – praktisch, wenn ein Handy weg ist.`, 'Abmelden'))) return;
+          const d = await fetch('/api/sitzungen', { method: 'DELETE', credentials: 'same-origin', headers: { 'x-lernheft': '1' } }).then((x) => x.json());
+          toast(`${d.abgemeldet} ${d.abgemeldet === 1 ? 'Gerät' : 'Geräte'} abgemeldet.`);
+        } catch { toast('Das hat nicht geklappt.', 'fehler'); }
+      } }, 'Andere Geräte abmelden'),
       k.admin && h('a', { class: 'knopf', href: '#verwaltung' }, 'Zur Verwaltung'),
       h('button', { class: 'knopf knopf-gefahr-leise', onclick: () => ctx.abmelden() }, 'Abmelden')),
     h('p', { class: 'hinweis' }, h('a', { href: '#datenschutz' }, 'Datenschutz: Was gespeichert wird')),

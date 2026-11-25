@@ -162,6 +162,25 @@ async function statistikZeigen(name) {
   ]);
 }
 
+function lernraumBereich(ctx) {
+  const e = ui.daten.einstellungen;
+  const url = h('input', { type: 'text', value: e.turnUrl || '', placeholder: 'turn:lernheft.app:3478', spellcheck: 'false', autocomplete: 'off' });
+  const geheim = h('input', { type: 'password', placeholder: e.turnGesetzt ? 'hinterlegt' : 'Inhalt von /root/turn-secret', autocomplete: 'off', spellcheck: 'false' });
+  const status = h('p', { class: 'hinweis', role: 'status' }, e.turnUrl && e.turnGesetzt ? '✅ TURN-Server eingetragen – Lernräume verbinden auch im Handynetz.' : '⚠️ Kein TURN-Server: Im Handynetz und manchen WLANs hören sich einzelne Personen nicht.');
+  return h('section', { class: 'blatt' },
+    h('h2', null, 'Lernraum-Verbindung (TURN)'), status,
+    h('form', { onsubmit: async (ev) => {
+      ev.preventDefault();
+      try {
+        await api('/api/verwaltung/einstellungen', { method: 'PUT', body: { turnUrl: url.value.trim(), turnSecret: geheim.value.trim() || undefined } });
+        toast('Gespeichert. Neue Lernräume nutzen den TURN-Server.');
+        geheim.value = '';
+        status.textContent = url.value.trim() ? '✅ TURN-Server eingetragen.' : '⚠️ Kein TURN-Server eingetragen.';
+      } catch (err) { toast(err.message, 'fehler'); }
+    } }, feld('Adresse', url), feld('Geheimnis', geheim), h('button', { class: 'knopf knopf-haupt', type: 'submit' }, 'Speichern')),
+    h('p', { class: 'hinweis' }, 'Den TURN-Server startest du einmal auf deinem Server (Anleitung von Claude). Das Geheimnis wird nie angezeigt.'));
+}
+
 function gruppeBereich(ctx) {
   const text = h('textarea', { rows: '3', maxlength: '500', placeholder: 'z. B. Neue Vokabeln für Unit 4 sind geteilt! 🎉' });
   const ziel = h('input', { type: 'number', min: '50', max: '100000', step: '50', placeholder: '1000' });
@@ -200,5 +219,5 @@ export function verwaltung(ctx) {
     ui.fehler && h('div', { class: 'blatt meldung meldung-fehler', role: 'alert' }, h('p', null, ui.fehler)),
     !ui.daten
       ? h('div', { class: 'blatt warten', role: 'status' }, h('p', null, 'Lade …'))
-      : [kontenBereich(ctx, ich), gruppeBereich(ctx), kiBereich(ctx), kontaktBereich(ctx), sicherungBereich()]);
+      : [kontenBereich(ctx, ich), gruppeBereich(ctx), kiBereich(ctx), lernraumBereich(ctx), kontaktBereich(ctx), sicherungBereich()]);
 }

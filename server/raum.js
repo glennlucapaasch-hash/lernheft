@@ -1,6 +1,7 @@
 // Lernräume: Video-Anruf (WebRTC, Signale über Abfragen), gemeinsames Whiteboard, gemeinsame Karte, gemeinsamer Timer.
 // Alles nur im Arbeitsspeicher – nichts wird gespeichert oder aufgezeichnet.
 import crypto from 'node:crypto';
+import * as db from './db.js';
 
 const raeume = new Map();
 const MAX = 6;
@@ -71,7 +72,7 @@ export function zeichnen(code, name, { strich, loeschen }) {
   if (loeschen) { r.striche = []; r.strichNr += 1; r.geloescht = r.strichNr; return { ok: true }; }
   if (!strich || !Array.isArray(strich.p) || strich.p.length > 2000) throw fehler(400, 'Ungültiger Strich.');
   r.strichNr += 1;
-  r.striche.push({ nr: r.strichNr, von: name, farbe: /^#[0-9a-f]{6}$/i.test(strich.farbe) ? strich.farbe : '#1b2a5c', breite: Math.min(40, Math.max(1, Number(strich.breite) || 3)), radierer: Boolean(strich.radierer), p: strich.p.map(([x, y]) => [Math.round(Number(x) * 10) / 10 || 0, Math.round(Number(y) * 10) / 10 || 0]) });
+  r.striche.push({ nr: r.strichNr, von: name, farbe: /^#[0-9a-f]{6}$/i.test(strich.farbe) ? strich.farbe : '#1b2a5c', breite: Math.min(160, Math.max(1, Number(strich.breite) || 3)), radierer: Boolean(strich.radierer), p: strich.p.map(([x, y]) => [Math.round(Number(x) * 10) / 10 || 0, Math.round(Number(y) * 10) / 10 || 0]) });
   if (r.striche.length > 3000) r.striche = r.striche.slice(-3000);
   return { ok: true };
 }
@@ -140,8 +141,10 @@ export function stand(code, name, sigSeit, strichSeit) {
 
 // ICE-Server: eigener TURN (coturn mit use-auth-secret) falls eingerichtet, sonst öffentlicher STUN
 export function ice(name) {
-  const url = process.env.TURN_URL; // z. B. turn:lernheft.app:3478
-  const secret = process.env.TURN_SECRET;
+  // TURN aus der Verwaltung, sonst aus Umgebungsvariablen (z. B. turn:lernheft.app:3478)
+  const e = db.einstellungen();
+  const url = e.turnUrl || process.env.TURN_URL;
+  const secret = e.turnSecret || process.env.TURN_SECRET;
   if (url && secret) {
     const user = `${Math.floor(Date.now() / 1000) + 12 * 3600}:${name}`;
     const credential = crypto.createHmac('sha1', secret).update(user).digest('base64');

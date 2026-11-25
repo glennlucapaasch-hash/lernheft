@@ -101,16 +101,23 @@ if (konto) {
     const r = await api('/api/daten');
     daten = r.ok ? await r.json() : (offlineCache()?.daten || {});
   } catch { daten = offlineCache()?.daten || {}; }
+  // Offline gelernt und App geschlossen, bevor gespeichert wurde? Dann gewinnt die neuere Fassung vom Gerät.
+  const cache = offlineCache();
+  const nachholen = Boolean(cache?.ungespeichert && cache.konto?.name === konto.name && cache.daten && !konto.offline);
+  if (nachholen) daten = cache.daten;
   if (konto.offline) setTimeout(() => toast('Offline: Du lernst mit der gespeicherten Fassung. Alles wird abgeglichen, sobald du wieder Netz hast.'), 800);
-  const zwischenspeichern = (json) => { try { localStorage.setItem(CACHE, JSON.stringify({ konto: { name: konto.name, admin: konto.admin }, daten: JSON.parse(json) })); } catch { /* Speicher voll: egal */ } };
+  const zwischenspeichern = (json, ungespeichert = false) => { try { localStorage.setItem(CACHE, JSON.stringify({ konto: { name: konto.name, admin: konto.admin }, daten: JSON.parse(json), ungespeichert })); } catch { /* Speicher voll: egal */ } };
   const lokaleKarten = lokal.cards.length;
-  zwischenspeichern(JSON.stringify(daten));
+  zwischenspeichern(JSON.stringify(daten), nachholen);
   store.serverModus(daten, async (json) => {
-    zwischenspeichern(json);
+    zwischenspeichern(json, true);
     const r = await api('/api/daten', { method: 'PUT', body: json, keepalive: json.length < 60000 });
     if (r.status === 401) location.reload();
     if (!r.ok) throw new Error('Speichern fehlgeschlagen');
+    zwischenspeichern(json, false);
   });
+  if (nachholen) { store.save(); setTimeout(() => toast('Was du offline gelernt hast, wird jetzt gespeichert.'), 900); }
+  addEventListener('online', () => store.jetztSpeichern?.());
   // Erste Anmeldung auf einem Gerät, auf dem schon ohne Konto gelernt wurde: Karten übernehmen?
   if (!store.getState().decks.length && lokaleKarten && konto.admin) {
     queueMicrotask(async () => {

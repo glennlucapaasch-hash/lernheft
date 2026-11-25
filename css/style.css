@@ -1453,3 +1453,9 @@ body.lr-vollbild { overflow: hidden; }
 body.lr-vollbild .chat-blase, body.lr-vollbild .nav-unten { visibility: hidden; }
 @keyframes grossAuf { from { transform: scale(.6); opacity: 0; } }
 .lr-kachel.ist-ich.rueckkamera video, .lr-kachel.ist-gross.ist-ich.rueckkamera:not(.teilt) video { transform: none; }
+.radier-groesse span { border-radius: 50%; background: transparent !important; border: 2px dashed currentColor; }
+.lr-groesse { display: inline-flex; align-items: center; gap: .2rem; }
+.lr-groesse select { width: auto; }
+.lr-kachel.verbindet::after { content: attr(data-status); }
+.lr-kachel.verbindet:not([data-status])::after, .lr-kachel.verbindet[data-status=""]::after { content: 'verbindet …'; }
+.blatt, .seite, main > * { min-width: 0; } .tabelle-rollen { max-width: 100%; position: relative; }
