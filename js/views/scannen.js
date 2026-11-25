@@ -4,7 +4,8 @@ import { FAECHER } from '../store.js';
 import { lernenStarten } from './lernen.js';
 import { kiVerfuegbar, bildVorbereiten, vokabelnErkennen, matheErkennen, stoffErkennen } from '../ai.js';
 
-const MAX_FOTOS = 4;
+const MAX_FOTOS = 20;
+const PRO_DURCHGANG = 3; // so viele Seiten liest die KI auf einmal – mehr würde lange dauern und Karten abschneiden
 const ARTEN = {
   vokabeln: { titel: 'Vokabeln', text: 'Wortlisten aus dem Sprachbuch', fn: vokabelnErkennen },
   mathe: { titel: 'Mathe-Aufgaben', text: 'Aufgaben, Beispiele, Merksätze', fn: matheErkennen },
@@ -26,10 +27,25 @@ async function erkennen(ctx) {
   ui.fehler = '';
   ctx.refresh();
   try {
-    const bilder = [];
-    for (const f of ui.fotos) bilder.push(await bildVorbereiten(f.datei));
-    const ergebnis = await ARTEN[ui.art].fn(bilder);
-    if (lauf !== ui.lauf) return; // inzwischen abgebrochen
+    const ergebnis = { titel: '', fach: '', karten: [] };
+    const gesehen = new Set();
+    const durchgaenge = Math.ceil(ui.fotos.length / PRO_DURCHGANG);
+    for (let d = 0; d < durchgaenge; d++) {
+      ui.fortschritt = { jetzt: d + 1, von: durchgaenge };
+      const stand = document.querySelector('.scan-fortschritt');
+      if (stand) stand.textContent = durchgaenge > 1 ? `Teil ${d + 1} von ${durchgaenge} (Seiten ${d * PRO_DURCHGANG + 1}–${Math.min(ui.fotos.length, (d + 1) * PRO_DURCHGANG)})` : '';
+      const bilder = [];
+      for (const f of ui.fotos.slice(d * PRO_DURCHGANG, (d + 1) * PRO_DURCHGANG)) bilder.push(await bildVorbereiten(f.datei));
+      let teil;
+      try { teil = await ARTEN[ui.art].fn(bilder); } catch (e) { if (d === 0) throw e; toast(`Teil ${d + 1} ging nicht: ${e.message}`, 'fehler'); continue; }
+      if (lauf !== ui.lauf) return; // inzwischen abgebrochen
+      if (!ergebnis.titel) { ergebnis.titel = teil.titel; ergebnis.fach = teil.fach; }
+      for (const k of teil.karten) {
+        const schluessel = `${k.front}|${k.back}`.toLowerCase();
+        if (!gesehen.has(schluessel)) { gesehen.add(schluessel); ergebnis.karten.push(k); }
+      }
+    }
+    if (lauf !== ui.lauf) return;
     if (!ergebnis.karten.length) {
       ui.schritt = 'start';
       ui.fehler = 'Auf dem Foto habe ich nichts Passendes gefunden. Ist die Seite scharf und ganz im Bild?';
@@ -100,7 +116,8 @@ function ladeSchritt(ctx) {
     h('div', { class: 'blatt warten', role: 'status' },
       h('div', { class: 'stift-laeuft', 'aria-hidden': 'true' }),
       h('p', null, h('strong', null, ui.fotos.length > 1 ? 'Ich lese die Seiten …' : 'Ich lese die Seite …')),
-      h('p', { class: 'hinweis' }, 'Das dauert meistens 10 bis 30 Sekunden. Du kannst so lange woanders weiterlernen.'),
+      h('p', { class: 'scan-fortschritt', 'aria-live': 'polite' }, ui.fortschritt?.von > 1 ? `Teil ${ui.fortschritt.jetzt} von ${ui.fortschritt.von}` : ''),
+      h('p', { class: 'hinweis' }, ui.fotos.length > PRO_DURCHGANG ? `Bei ${ui.fotos.length} Seiten dauert das etwa ${Math.ceil(ui.fotos.length / PRO_DURCHGANG) * 20} Sekunden. Du kannst so lange woanders weiterlernen.` : 'Das dauert meistens 10 bis 30 Sekunden. Du kannst so lange woanders weiterlernen.'),
       h('button', { class: 'knopf', onclick: () => { ui.lauf++; ui.schritt = 'start'; ctx.refresh(); } }, 'Abbrechen')));
 }
 
