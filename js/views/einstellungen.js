@@ -184,6 +184,9 @@ export function einstellungen(ctx) {
     zeigeStatus();
   } }, 'Verbindung testen');
 
+  const version = h('p', { class: 'hinweis app-version' }, 'App-Version: …');
+  caches?.keys?.().then((k) => { const v = k.find((x) => x.startsWith('lernheft-')); version.textContent = `App-Version: ${v ? v.replace('lernheft-', '') : 'ohne Zwischenspeicher'}`; }).catch(() => {});
+
   return h('div', { class: 'seite' },
     h('header', { class: 'seiten-kopf' }, h('h1', { class: 'handschrift' }, 'Einstellungen')),
 
@@ -231,5 +234,6 @@ export function einstellungen(ctx) {
             ctx.go('start');
           }
         } }, 'Alles löschen'))),
-    h('p', { class: 'handschrift macher' }, 'Lernheft – gemacht von Glenn'));
+    h('p', { class: 'handschrift macher' }, 'Lernheft – gemacht von Glenn'),
+    version);
 }

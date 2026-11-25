@@ -314,5 +314,12 @@ if (konto?.name === 'glenn') {
 
 // Offline nutzbar machen (nur auf einer echten Webadresse; in Vorschauen ist das gesperrt).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then((r) => {
+    // Beim Zurückkehren in die App nach Updates schauen
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') r.update().catch(() => {}); });
+  }).catch(() => {});
+  // Neue Version aktiv → einmal neu laden, damit sofort alles neu ist
+  let neuGeladen = false;
+  const hatteSteuerung = Boolean(navigator.serviceWorker.controller);
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (hatteSteuerung && !neuGeladen) { neuGeladen = true; location.reload(); } });
 }

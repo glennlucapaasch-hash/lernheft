@@ -1,6 +1,6 @@
 // Macht die App offline nutzbar: Die App-Dateien werden auf dem Gerät zwischengespeichert.
 // Anfragen an die KI gehen immer direkt ins Netz und werden nie gespeichert.
-const VERSION = 'lernheft-34';
+const VERSION = 'lernheft-35';
 const DATEIEN = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png',
   'js/app.js', 'js/dom.js', 'js/store.js', 'js/srs.js', 'js/check.js', 'js/calc.js', 'js/exam.js', 'js/ai.js',
@@ -26,7 +26,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET' || url.pathname.startsWith('/api/') || (url.origin !== self.location.origin && !schrift)) return;
   // Erst das Netz (damit Updates ankommen), ohne Netz die gespeicherte Fassung.
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then((antwort) => {
         if (antwort.ok || antwort.type === 'opaque') {
           const kopie = antwort.clone();

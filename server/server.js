@@ -78,10 +78,15 @@ async function datei(req, res, pfad) {
   try {
     const s = await stat(voll);
     if (!s.isFile()) throw new Error();
+    // App-Dateien immer frisch prüfen (ETag), damit Updates sofort bei allen ankommen
+    const etag = `"${s.size.toString(36)}-${Math.floor(s.mtimeMs).toString(36)}"`;
+    const istCode = /\.(js|css|html|webmanifest)$/.test(voll) || pfad === '/';
+    if (req.headers['if-none-match'] === etag) { res.writeHead(304, { etag, 'cache-control': istCode ? 'no-cache' : 'public, max-age=86400' }); res.end(); return; }
     const inhalt = await readFile(voll);
     res.writeHead(200, {
+      etag,
       'content-type': TYPEN[path.extname(voll)] || 'application/octet-stream',
-      'cache-control': pfad === '/index.html' || pfad === '/sw.js' ? 'no-cache' : 'public, max-age=300',
+      'cache-control': istCode ? 'no-cache' : 'public, max-age=86400',
       'x-content-type-options': 'nosniff',
       'referrer-policy': 'same-origin',
     });
