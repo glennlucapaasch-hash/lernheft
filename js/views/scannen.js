@@ -24,6 +24,7 @@ function zuruecksetzen() {
 async function erkennen(ctx) {
   const lauf = ++ui.lauf;
   ui.schritt = 'laden';
+  ui.fortschritt = null;
   ui.fehler = '';
   ctx.refresh();
   try {
